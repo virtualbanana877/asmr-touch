@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useOnHidden } from "@/hooks/useOnHidden";
 import {
   playSlimeBubble,
   playSlimePress,
   playSlimeRelease,
   startSlime,
+  stopAllStreams,
   type SlimeStream,
 } from "@/lib/audio";
 import type { StageProps } from "./stage";
@@ -191,6 +193,7 @@ export default function SlimeStage({ onTouch, onDiscover }: StageProps) {
     () => () => {
       clearInterval(timer.current);
       stream.current?.stop();
+      stopAllStreams();
     },
     [],
   );
@@ -213,6 +216,9 @@ export default function SlimeStage({ onTouch, onDiscover }: StageProps) {
     wake.current();
   };
 
+  // 別のタブに移ったら、指を離したことにして音を止める
+  useOnHidden(end);
+
   return (
     <div
       ref={boxRef}
@@ -220,6 +226,7 @@ export default function SlimeStage({ onTouch, onDiscover }: StageProps) {
       role="application"
       aria-label="スライムをつかんでのばす"
       onPointerDown={(e) => {
+        if (grab.current) return; // 2本目の指は無視
         const p = local(e);
         const { cx, cy, R } = geom.current;
         const nx = (p.x - cx) / (R * 1.7);
@@ -238,6 +245,8 @@ export default function SlimeStage({ onTouch, onDiscover }: StageProps) {
         moved.current = 0;
         lastMove.current = performance.now();
 
+        stream.current?.stop();
+        clearInterval(timer.current);
         stream.current = startSlime();
         playSlimePress();
         onTouch("tap");

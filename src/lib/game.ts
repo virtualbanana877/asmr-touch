@@ -59,7 +59,7 @@ export const UNLOCKS: Unlock[] = [
   { id: "t15", kind: "title", name: "ASMRの住人", desc: "ここが居場所", level: 15 },
 
   { id: "keys", kind: "object", name: "かちかちキー", desc: "打鍵感の違う4種類のキー", level: 16 },
-  { id: "squeeze", kind: "object", name: "パキパキスクイーズ", desc: "ぎゅっと握ると、パキパキ鳴る", level: 18 },
+  { id: "squeeze", kind: "object", name: "パキパキスクイーズ", desc: "ロウをパキパキ割ると、中からふにゅふにゅ", level: 18 },
   { id: "sparkle", kind: "sound", name: "しゃらん", desc: "きらきら駆け上がる音", level: 17 },
   { id: "heart", kind: "effect", name: "ハート", desc: "ふわっと広がるハート", level: 17 },
   { id: "sakura", kind: "theme", name: "さくら夜", desc: "夜桜のような紅", level: 18 },
@@ -83,6 +83,7 @@ export const SECRETS: Secret[] = [
   { id: "longslime", name: "のびーるスライム", hint: "どこまで伸びるか試したくなる", note: "スライムを思いきり長くのばした。" },
   { id: "pakipaki", name: "パキパキ職人", hint: "握る音を聴き込む", note: "パキパキを100回鳴らした。" },
   { id: "flip", name: "ひっくり返し", hint: "全部押しこんだら、どうなる？", note: "プッシュポップを全部押しこんだ。" },
+  { id: "waxbreak", name: "ロウの下には", hint: "かたい殻の中身が見たい", note: "スクイーズのロウを全部割った。" },
 ];
 export const SECRET_XP = 20;
 
@@ -95,7 +96,7 @@ export const THEME_SWATCH: Record<ThemeId, string> = {
   galaxy: "linear-gradient(135deg,#2a2a7a,#07081c)",
 };
 
-export type Shape = "circle" | "star" | "petal" | "heart";
+export type Shape = "circle" | "star" | "petal" | "heart" | "chip";
 export const EFFECT_STYLE: Record<EffectId, { shape: Shape; colors: readonly string[]; sample: string }> = {
   droplet: { shape: "circle", colors: PALETTE, sample: "●" },
   star: { shape: "star", colors: ["#ffe9a8", "#fff6d0", "#8fe3e0"], sample: "✦" },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useOnHidden } from "@/hooks/useOnHidden";
 import { useParticles } from "@/hooks/useParticles";
 import { playBoing, playJellyBubble, playSquish } from "@/lib/audio";
 import type { StageProps } from "./stage";
@@ -64,6 +65,8 @@ export default function JellyStage({ onTouch, onDiscover, effect }: StageProps) 
     if (raw >= 5) onDiscover("stretch");
     releaseTimer.current = setTimeout(() => setPhase("idle"), 750);
   };
+
+  useOnHidden(release);
 
   return (
     <div ref={containerRef} className="relative flex-1 touch-none select-none overflow-hidden">

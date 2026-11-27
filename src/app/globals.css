@@ -287,6 +287,8 @@ html[data-theme="galaxy"] body {
 
 /* ---------- パキパキスクイーズ ---------- */
 .squeeze {
+  position: relative;
+  overflow: hidden;
   width: 210px;
   height: 210px;
   border-radius: 46% 46% 50% 50% / 44% 44% 56% 56%;
@@ -329,4 +331,17 @@ html[data-theme="galaxy"] body {
     0 1px 0 color-mix(in srgb, var(--c) 55%, black),
     0 1px 3px rgba(0, 0, 0, 0.2);
   filter: brightness(0.88);
+}
+
+/* ロウのコーティング。割れるほど薄くなり、中のスクイーズが見える */
+.squeeze-wax {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.85) 0 8%, transparent 18%),
+    linear-gradient(160deg, #ffe3ee, #ffd0e2 55%, #f2b6d1);
+  box-shadow: inset 0 -12px 24px rgba(120, 40, 80, 0.2);
+  transition: opacity 0.35s ease-out;
 }

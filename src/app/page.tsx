@@ -42,7 +42,7 @@ const HINTS: Record<ObjectId, string> = {
   pushpop: "押しこんでぽこっ。なぞると一気に押せる。もう一度で戻る",
   marble: "タップでビー玉を落とす",
   keys: "キーを打つ。PCなら実際のキーボードでも鳴る",
-  squeeze: "長押しで握りこむ。深く握るほどパキパキ鳴る",
+  squeeze: "長押しで握りこむ。ロウがパキパキ割れて、中身が出てくる",
 };
 
 export default function Home() {

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useOnHidden } from "@/hooks/useOnHidden";
 import { rand } from "@/hooks/useParticles";
-import { startSand, type SandStream } from "@/lib/audio";
+import { startSand, stopAllStreams, type SandStream } from "@/lib/audio";
 import type { StageProps } from "./stage";
 
 const COL = 4; // 砂山の1列の幅(px)
@@ -142,6 +143,7 @@ export default function SandStage({ onTouch, onDiscover }: StageProps) {
     () => () => {
       clearInterval(timer.current);
       stream.current?.stop();
+      stopAllStreams();
     },
     [],
   );
@@ -169,12 +171,14 @@ export default function SandStage({ onTouch, onDiscover }: StageProps) {
   };
 
   const end = () => {
-    if (!pointer.current) return;
     pointer.current = null;
     clearInterval(timer.current);
     stream.current?.stop();
     stream.current = null;
   };
+
+  // 別のタブに移ったら、指を離したことにして音を止める
+  useOnHidden(end);
 
   return (
     <div
@@ -183,12 +187,15 @@ export default function SandStage({ onTouch, onDiscover }: StageProps) {
       role="application"
       aria-label="砂をなぞって流す"
       onPointerDown={(e) => {
+        if (pointer.current) return; // 2本目の指は無視（音がリークするため）
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
         const p = local(e);
         const now = performance.now();
         pointer.current = { ...p, t: now };
         lastMove.current = now;
+        clearInterval(timer.current);
+        stream.current?.stop();
         stream.current = startSand();
         addGrains(p.x, p.y, 6);
         // 止まっている間は音を消す

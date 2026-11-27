@@ -50,6 +50,15 @@ function drawShape(ctx: CanvasRenderingContext2D, p: Particle, k: number) {
       ctx.restore();
       break;
     }
+    case "chip": {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin + p.age * 8);
+      ctx.rect(-r, -r * 0.6, r * 2, r * 1.2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
     case "heart": {
       const s = r * 1.3;
       ctx.moveTo(p.x, p.y + s);
@@ -254,5 +263,28 @@ export function useParticles(effect: EffectId = "droplet") {
     startLoop.current();
   }, []);
 
-  return { containerRef, canvasRef, burst, sparkle, ripple };
+  /** ロウのかけら（色を指定できる） */
+  const chips = useCallback((x: number, y: number, count: number, color: string) => {
+    const list = particles.current;
+    for (let i = 0; i < count; i++) {
+      list.push(
+        P({
+          x, y,
+          vx: rand(-140, 140),
+          vy: rand(-220, -40),
+          r: rand(3, 6),
+          age: 0,
+          life: rand(0.7, 1.1),
+          color,
+          kind: "drop",
+          shape: "chip",
+          spin: rand(0, Math.PI),
+        }),
+      );
+    }
+    trim();
+    startLoop.current();
+  }, []);
+
+  return { containerRef, canvasRef, burst, sparkle, ripple, chips };
 }

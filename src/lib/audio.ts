@@ -6,6 +6,13 @@ let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let loop: AudioBuffer | null = null;
 
+/** 鳴り続ける音（砂・スライム）。止め忘れを防ぐため一括で止められるようにしておく */
+type Stream = { set(level: number): void; stop(): void };
+const streams = new Set<Stream>();
+export function stopAllStreams() {
+  for (const s of [...streams]) s.stop();
+}
+
 /** 最初のユーザー操作の中で呼ばれる前提（自動再生制限対策） */
 function getCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -18,6 +25,14 @@ function getCtx(): AudioContext | null {
     master = ctx.createGain();
     master.gain.value = 0.7;
     master.connect(ctx.destination);
+    // 別のタブに移ったら、鳴り続ける音を止めて、音声そのものも止める（戻ると次の操作で再開）
+    const created = ctx;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopAllStreams();
+        void created.suspend();
+      }
+    });
   }
   if (ctx.state === "suspended") void ctx.resume();
   return ctx;
@@ -183,7 +198,7 @@ export function playBoing(heldSeconds: number) {
 
 /* ---------- 砂 ---------- */
 /** なぞっている間ずっと鳴る「さー」という音。set(0〜1)で勢いを変える */
-export function startSand() {
+export function startSand(): Stream | null {
   const c = getCtx();
   if (!c) return null;
   const s = c.createBufferSource();
@@ -200,7 +215,7 @@ export function startSand() {
   g.gain.value = 0;
   s.connect(hp).connect(bp).connect(g).connect(master!);
   s.start();
-  return {
+  const ctl: Stream = {
     set(level: number) {
       const t = c.currentTime;
       const jitter = 0.7 + Math.random() * 0.6; // 粒っぽさ
@@ -208,11 +223,14 @@ export function startSand() {
       bp.frequency.setTargetAtTime(3500 + level * 3000, t, 0.05);
     },
     stop() {
+      if (!streams.delete(ctl)) return; // 二重に止めない
       const t = c.currentTime;
       g.gain.setTargetAtTime(0, t, 0.06);
       s.stop(t + 0.4);
     },
   };
+  streams.add(ctl);
+  return ctl;
 }
 export type SandStream = NonNullable<ReturnType<typeof startSand>>;
 
@@ -277,7 +295,7 @@ export function playKey(type: number, combo: number, rate: number) {
 
 /* ---------- スライム ---------- */
 /** のばしている間ずっと鳴る、ぬめっとした音。set(0〜1)で勢いを変える */
-export function startSlime() {
+export function startSlime(): Stream | null {
   const c = getCtx();
   if (!c) return null;
   const s = c.createBufferSource();
@@ -294,18 +312,21 @@ export function startSlime() {
   g.gain.value = 0;
   s.connect(bp).connect(lp).connect(g).connect(master!);
   s.start();
-  return {
+  const ctl: Stream = {
     set(level: number) {
       const t = c.currentTime;
       g.gain.setTargetAtTime(level * 0.5, t, 0.05);
       bp.frequency.setTargetAtTime(350 + level * 900 + Math.random() * 350, t, 0.03);
     },
     stop() {
+      if (!streams.delete(ctl)) return;
       const t = c.currentTime;
       g.gain.setTargetAtTime(0, t, 0.08);
       s.stop(t + 0.5);
     },
   };
+  streams.add(ctl);
+  return ctl;
 }
 export type SlimeStream = NonNullable<ReturnType<typeof startSlime>>;
 
@@ -362,6 +383,26 @@ export function playPush(col: number, inward: boolean) {
     tone(c, t, f * 0.7, f * 1.2, 0.08, 0.3);
     hiss(c, t, "bandpass", 1000, 1, 0.03, 0.15);
   }
+}
+
+/** ロウが全部割れる大きなパキパキ */
+export function playWaxBreak() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  for (let i = 0; i < 6; i++) {
+    hiss(c, t + i * 0.025 + Math.random() * 0.02, "highpass", 2500 + Math.random() * 3500, 0.9, 0.03, 0.5);
+  }
+  tone(c, t, 300, 90, 0.12, 0.4);
+}
+
+/** ロウがなくなったあとの、やわらかい「ぷにゅ」 */
+export function playPuni(strong: boolean) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  tone(c, t, 200 + Math.random() * 90, 110, 0.1, strong ? 0.32 : 0.18);
+  hiss(c, t, "lowpass", 500, 0.8, 0.08, strong ? 0.22 : 0.12);
 }
 
 /* ---------- ごほうび ---------- */

@@ -1,14 +1,36 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useOnHidden } from "@/hooks/useOnHidden";
 import { rand, useParticles } from "@/hooks/useParticles";
-import { playCrack } from "@/lib/audio";
+import { playCrack, playPuni, playWaxBreak } from "@/lib/audio";
 import type { StageProps } from "./stage";
 
 const STEPS = 12; // 握りこみを12段階に区切り、段階をまたぐたびに「パキッ」
+const WAX_COLOR = "#f7c3d9";
+const WAX_PER_CRACK = 0.016; // 強いパキッ1回で減るロウの量（約60回で全部割れる）
+const RECOAT_MS = 4000; // 触らないままこの時間がたつと、ロウがまた塗られる
+const MAX_CRACKS = 28;
+
+/** ひび割れの線を1本つくる（0〜100の座標のSVGパス） */
+const makeCrack = (): string => {
+  let x = 15 + Math.random() * 70;
+  let y = 12 + Math.random() * 76;
+  let a = Math.random() * Math.PI * 2;
+  let d = `M${x.toFixed(1)} ${y.toFixed(1)}`;
+  const segs = 3 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < segs; i++) {
+    a += (Math.random() - 0.5) * 1.4;
+    const len = 6 + Math.random() * 10;
+    x += Math.cos(a) * len;
+    y += Math.sin(a) * len;
+    d += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return d;
+};
 
 export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps) {
-  const { containerRef, canvasRef, sparkle } = useParticles(effect);
+  const { containerRef, canvasRef, sparkle, chips } = useParticles(effect);
   const ballRef = useRef<HTMLDivElement>(null);
   const pressing = useRef(false);
   const depth = useRef(0); // 0=自然な形 / 1=いっぱいに握った
@@ -19,12 +41,39 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
   const wiggle = useRef(0);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
   const crackRef = useRef<(strong: boolean) => void>(() => {});
+  const waxLeft = useRef(1); // ロウの残り 1→0
+  const touchedAt = useRef(0);
+  const [wax, setWax] = useState(1);
+  const [cracks, setCracks] = useState<string[]>([]);
 
   const crack = (strong: boolean) => {
-    playCrack(strong);
+    touchedAt.current = performance.now();
     const s = containerRef.current!.getBoundingClientRect();
     const b = ballRef.current!.getBoundingClientRect();
-    sparkle(b.left - s.left + rand(0.2, 0.8) * b.width, b.top - s.top + rand(0.15, 0.85) * b.height, 2);
+    const px = b.left - s.left + rand(0.2, 0.8) * b.width;
+    const py = b.top - s.top + rand(0.15, 0.85) * b.height;
+
+    if (waxLeft.current > 0) {
+      playCrack(strong);
+      if (strong) {
+        waxLeft.current = Math.max(0, waxLeft.current - WAX_PER_CRACK);
+        setWax(waxLeft.current);
+        setCracks((c) => [...c.slice(-(MAX_CRACKS - 1)), makeCrack()]);
+      }
+      chips(px, py, strong ? 2 : 1, WAX_COLOR);
+
+      if (waxLeft.current === 0) {
+        // ロウが全部割れた
+        playWaxBreak();
+        chips(b.left - s.left + b.width / 2, b.top - s.top + b.height / 2, 16, WAX_COLOR);
+        onTouch("hold", 10);
+        onDiscover("waxbreak");
+      }
+    } else {
+      playPuni(strong); // 中身のふにゅふにゅ
+      sparkle(px, py, 2);
+    }
+
     total.current += 1;
     if (strong && total.current % 2 === 0) onTouch("hold", 1); // 2回に1回、経験値
     if (total.current >= 100) onDiscover("pakipaki");
@@ -34,6 +83,7 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
     crackRef.current = crack;
   });
 
+  // 握りこみのアニメーション
   useEffect(() => {
     let last = 0;
     let running = false;
@@ -87,11 +137,24 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // ロウが全部とれたまま触らないでいると、ロウがまた塗られる
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (waxLeft.current === 0 && !pressing.current && performance.now() - touchedAt.current > RECOAT_MS) {
+        waxLeft.current = 1;
+        setWax(1);
+        setCracks([]);
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, []);
+
   const press = (x: number, y: number) => {
     if (pressing.current) return;
     pressing.current = true;
     lastPos.current = { x, y };
     wiggle.current = 0;
+    touchedAt.current = performance.now();
     onTouch("tap");
     crack(true);
     wake.current();
@@ -101,8 +164,12 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
     if (!pressing.current) return;
     pressing.current = false;
     lastPos.current = null;
+    touchedAt.current = performance.now();
     wake.current();
   };
+
+  // 別のタブに移ったら、握るのをやめる
+  useOnHidden(release);
 
   return (
     <div ref={containerRef} className="relative flex-1 touch-none select-none overflow-hidden">
@@ -111,7 +178,7 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
           ref={ballRef}
           role="button"
           tabIndex={0}
-          aria-label="スクイーズを握る"
+          aria-label="ロウつきスクイーズを握る"
           className="squeeze"
           onPointerDown={(e) => {
             e.preventDefault();
@@ -138,7 +205,18 @@ export default function SqueezeStage({ onTouch, onDiscover, effect }: StageProps
             }
           }}
           onKeyUp={release}
-        />
+        >
+          <div className="squeeze-wax" style={{ opacity: wax <= 0 ? 0 : 0.3 + 0.7 * wax }} aria-hidden>
+            <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full">
+              {cracks.map((d, i) => (
+                <g key={i} fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={d} stroke="rgba(120,40,80,0.4)" strokeWidth="2" />
+                  <path d={d} stroke="rgba(255,255,255,0.9)" strokeWidth="0.9" />
+                </g>
+              ))}
+            </svg>
+          </div>
+        </div>
       </div>
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
     </div>
