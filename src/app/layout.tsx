@@ -4,7 +4,7 @@ import "./globals.css";
 
 const zen = Zen_Maru_Gothic({
   weight: ["400", "700"],
-  subsets: ["latin", "japanese"],
+  subsets: ["latin"],
   preload: false,
   display: "swap",
   variable: "--font-zen",
