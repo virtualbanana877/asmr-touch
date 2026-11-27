@@ -1,8 +1,10 @@
+// 効果音はすべてコード内で合成しています（録音素材・既存曲のフレーズは使っていません）。
 import type { SoundId } from "./game";
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
+let loop: AudioBuffer | null = null;
 
 /** 最初のユーザー操作の中で呼ばれる前提（自動再生制限対策） */
 function getCtx(): AudioContext | null {
@@ -21,14 +23,14 @@ function getCtx(): AudioContext | null {
   return ctx;
 }
 
-function noiseBuffer(c: AudioContext) {
-  if (!noise) {
-    noise = c.createBuffer(1, Math.floor(c.sampleRate * 0.3), c.sampleRate);
-    const d = noise.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  }
-  return noise;
+function makeNoise(c: AudioContext, seconds: number) {
+  const buf = c.createBuffer(1, Math.floor(c.sampleRate * seconds), c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  return buf;
 }
+const noiseBuffer = (c: AudioContext) => (noise ??= makeNoise(c, 0.3));
+const loopBuffer = (c: AudioContext) => (loop ??= makeNoise(c, 2));
 
 function envelope(g: GainNode, t: number, peak: number, decay: number) {
   g.gain.setValueAtTime(0.0001, t);
@@ -62,26 +64,134 @@ function hiss(c: AudioContext, t: number, filter: BiquadFilterType, freq: number
   s.stop(t + decay + 0.02);
 }
 
-/** コンボが増えるほど音程が少し上がる（最大 +7 半音） */
+/** コンボが増えるほど音程が少し上がる（最大 +7 半音）＋わずかなゆらぎ */
+const pitch = (combo: number) =>
+  2 ** ((Math.min(Math.max(combo - 1, 0), 14) * 0.5) / 12) * (0.97 + Math.random() * 0.06);
+
+/* ---------- しゃぼん玉 ---------- */
 export function playPop(id: SoundId, combo: number) {
   const c = getCtx();
   if (!c) return;
   const t = c.currentTime;
-  const semis = Math.min(Math.max(combo - 1, 0), 14) * 0.5;
-  const r = 2 ** (semis / 12) * (0.97 + Math.random() * 0.06);
+  const r = pitch(combo);
 
-  if (id === "soft") {
-    hiss(c, t, "bandpass", 2400 * r, 1.2, 0.09, 0.5);
-    tone(c, t, 900 * r, 260 * r, 0.1, 0.35);
-  } else if (id === "deep") {
-    tone(c, t, 320 * r, 80 * r, 0.22, 0.6);
-    hiss(c, t, "lowpass", 900, 0.7, 0.08, 0.25);
-  } else {
-    tone(c, t, 1568 * r, 1500 * r, 0.35, 0.2);
-    tone(c, t, 2349 * r, 2300 * r, 0.25, 0.12);
-    hiss(c, t, "highpass", 5000, 0.7, 0.04, 0.25);
+  switch (id) {
+    case "soft":
+      hiss(c, t, "bandpass", 2400 * r, 1.2, 0.09, 0.5);
+      tone(c, t, 900 * r, 260 * r, 0.1, 0.35);
+      break;
+    case "deep":
+      tone(c, t, 320 * r, 80 * r, 0.22, 0.6);
+      hiss(c, t, "lowpass", 900, 0.7, 0.08, 0.25);
+      break;
+    case "glass":
+      tone(c, t, 1568 * r, 1500 * r, 0.35, 0.2);
+      tone(c, t, 2349 * r, 2300 * r, 0.25, 0.12);
+      hiss(c, t, "highpass", 5000, 0.7, 0.04, 0.25);
+      break;
+    case "drop": // 音程が上がる水滴
+      tone(c, t, 520 * r, 1150 * r, 0.09, 0.45);
+      tone(c, t + 0.035, 330 * r, 700 * r, 0.13, 0.22);
+      hiss(c, t, "lowpass", 1200, 0.7, 0.05, 0.12);
+      break;
+    case "pluck": {
+      // ペンタトニックのどれかを鳴らす（どの音でも濁らない）
+      const ratios = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3];
+      const f = 523.25 * r * ratios[Math.floor(Math.random() * ratios.length)];
+      tone(c, t, f, f, 0.5, 0.4);
+      tone(c, t, f * 4, f * 4, 0.07, 0.1);
+      break;
+    }
+    case "crackle": {
+      const n = 4 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) {
+        hiss(c, t + Math.random() * 0.16, "highpass", 3000 + Math.random() * 3000, 0.8, 0.02, 0.3);
+      }
+      tone(c, t, 1800 * r, 900 * r, 0.04, 0.1);
+      break;
+    }
+    case "chime": {
+      const f = 1175 * r;
+      tone(c, t, f, f, 0.9, 0.14);
+      tone(c, t, f * 2.76, f * 2.76, 0.5, 0.08);
+      tone(c, t, f * 5.4, f * 5.4, 0.25, 0.04);
+      break;
+    }
   }
 }
+
+/* ---------- ゼリー ---------- */
+export function playSquish(combo: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const r = pitch(combo);
+  tone(c, t, 240 * r, 90 * r, 0.18, 0.5);
+  hiss(c, t, "lowpass", 700, 0.8, 0.14, 0.3);
+}
+
+export function playJellyBubble(combo: number) {
+  const c = getCtx();
+  if (!c) return;
+  const r = pitch(combo) * (0.9 + Math.random() * 0.5);
+  tone(c, c.currentTime, 260 * r, 420 * r, 0.09, 0.18);
+}
+
+/** 離したときの「ぷるん」。長く押すほど少し大きく低く鳴る */
+export function playBoing(heldSeconds: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const h = Math.min(heldSeconds, 2);
+  const base = 130 + h * 20;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = "sine";
+  const steps: [number, number][] = [
+    [0, 1], [0.05, 1.7], [0.11, 0.78], [0.18, 1.3], [0.26, 0.92], [0.36, 1.08], [0.5, 1],
+  ];
+  o.frequency.setValueAtTime(base, t);
+  steps.forEach(([dt, m]) => o.frequency.linearRampToValueAtTime(base * m, t + dt));
+  envelope(g, t, 0.3 + h * 0.12, 0.55);
+  o.connect(g).connect(master!);
+  o.start(t);
+  o.stop(t + 0.6);
+}
+
+/* ---------- 砂 ---------- */
+/** なぞっている間ずっと鳴る「さー」という音。set(0〜1)で勢いを変える */
+export function startSand() {
+  const c = getCtx();
+  if (!c) return null;
+  const s = c.createBufferSource();
+  s.buffer = loopBuffer(c);
+  s.loop = true;
+  const hp = c.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 1800;
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 4500;
+  bp.Q.value = 0.6;
+  const g = c.createGain();
+  g.gain.value = 0;
+  s.connect(hp).connect(bp).connect(g).connect(master!);
+  s.start();
+  return {
+    set(level: number) {
+      const t = c.currentTime;
+      const jitter = 0.7 + Math.random() * 0.6; // 粒っぽさ
+      g.gain.setTargetAtTime(level * 0.35 * jitter, t, 0.04);
+      bp.frequency.setTargetAtTime(3500 + level * 3000, t, 0.05);
+    },
+    stop() {
+      const t = c.currentTime;
+      g.gain.setTargetAtTime(0, t, 0.06);
+      s.stop(t + 0.4);
+    },
+  };
+}
+export type SandStream = NonNullable<ReturnType<typeof startSand>>;
 
 export function playLevelUp() {
   const c = getCtx();

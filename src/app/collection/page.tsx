@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { UNLOCKS } from "@/lib/game";
+import { playPop } from "@/lib/audio";
+import { UNLOCKS, type SoundId } from "@/lib/game";
 import { DEFAULT_SAVE, loadSave, type SaveData } from "@/lib/storage";
 
 const KIND_LABEL = { object: "オブジェクト", sound: "音" } as const;
@@ -36,6 +37,15 @@ export default function CollectionPage() {
                 <>
                   <p className="mt-1 font-bold text-film-cyan">{u.name}</p>
                   <p className="mt-1 text-sm text-white/70">{u.desc}</p>
+                  {u.kind === "sound" && (
+                    <button
+                      type="button"
+                      onClick={() => playPop(u.id as SoundId, 1)}
+                      className="mt-3 rounded-full bg-white/10 px-3 py-1 text-sm focus-visible:outline-2 focus-visible:outline-film-lemon"
+                    >
+                      聴く
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

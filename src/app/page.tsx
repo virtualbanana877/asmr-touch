@@ -1,23 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import BubbleStage from "@/components/BubbleStage";
 import HUD from "@/components/HUD";
-import { useGame } from "@/hooks/useGame";
-import { playLevelUp, playPop } from "@/lib/audio";
-import { COMBO_WINDOW_MS, soundIdsAt, xpToNext } from "@/lib/game";
+import JellyStage from "@/components/JellyStage";
+import ObjectSwitcher from "@/components/ObjectSwitcher";
+import SandStage from "@/components/SandStage";
+import { useGame, type TouchMode } from "@/hooks/useGame";
+import { playLevelUp } from "@/lib/audio";
+import { COMBO_WINDOW_MS, xpToNext, type ObjectId } from "@/lib/game";
+
+const HINTS: Record<ObjectId, string> = {
+  bubble: "タップして割る",
+  jelly: "長押しでつぶして、離すとぷるん",
+  sand: "指でなぞると砂が流れる",
+};
 
 export default function Home() {
-  const { save, ready, combo, levelUp, pop } = useGame();
+  const { save, ready, combo, levelUp, touch } = useGame();
+  const [object, setObject] = useState<ObjectId>("bubble");
 
-  const handlePop = useCallback(() => {
-    const r = pop();
-    const ids = soundIdsAt(r.level);
-    playPop(ids[Math.floor(Math.random() * ids.length)], r.combo);
-    if (r.leveledUp) setTimeout(playLevelUp, 120);
-    return r.combo;
-  }, [pop]);
+  const handleTouch = useCallback(
+    (mode: TouchMode) => {
+      const r = touch(mode);
+      if (r.leveledUp) setTimeout(playLevelUp, 120);
+      return r;
+    },
+    [touch],
+  );
 
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col">
@@ -29,10 +40,16 @@ export default function Home() {
         windowMs={COMBO_WINDOW_MS}
       />
 
-      {ready ? <BubbleStage onPop={handlePop} /> : <div className="flex-1" />}
+      {!ready && <div className="flex-1" />}
+      {ready && object === "bubble" && <BubbleStage key="bubble" onTouch={handleTouch} />}
+      {ready && object === "jelly" && <JellyStage key="jelly" onTouch={handleTouch} />}
+      {ready && object === "sand" && <SandStage key="sand" onTouch={handleTouch} />}
 
-      <footer className="relative flex items-center justify-between px-5 pb-5 pt-3 text-sm text-white/70">
-        <p>{save.totalPops} 回割った</p>
+      <p className="px-5 pb-2 text-center text-sm text-white/50">{HINTS[object]}</p>
+      <ObjectSwitcher level={save.level} current={object} onSelect={setObject} />
+
+      <footer className="relative flex items-center justify-between px-5 pb-5 pt-2 text-sm text-white/70">
+        <p>{save.totalPops} 回さわった</p>
         <Link href="/collection" className="rounded-full bg-shade px-4 py-2 text-foam">
           コレクション
         </Link>

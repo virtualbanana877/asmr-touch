@@ -5,6 +5,9 @@ import { COMBO_WINDOW_MS, unlocksAtLevel, xpGain, xpToNext, type Unlock } from "
 import { DEFAULT_SAVE, loadSave, writeSave, type SaveData } from "@/lib/storage";
 
 export type LevelUpInfo = { level: number; unlocks: Unlock[] };
+/** tap: 触った瞬間（コンボ+1） / hold: 押し続け・なぞり中（コンボ維持＋XP少し） */
+export type TouchMode = "tap" | "hold";
+export type TouchResult = { combo: number; level: number; leveledUp: boolean };
 
 export function useGame() {
   const [save, setSave] = useState<SaveData>(DEFAULT_SAVE);
@@ -31,8 +34,8 @@ export function useGame() {
     return () => clearTimeout(id);
   }, [levelUp]);
 
-  const pop = useCallback(() => {
-    const nextCombo = comboRef.current + 1;
+  const touch = useCallback((mode: TouchMode = "tap"): TouchResult => {
+    const nextCombo = mode === "tap" ? comboRef.current + 1 : comboRef.current;
     comboRef.current = nextCombo;
     setCombo(nextCombo);
     clearTimeout(timer.current);
@@ -43,7 +46,7 @@ export function useGame() {
 
     const prev = saveRef.current;
     let { xp, level } = prev;
-    xp += xpGain(nextCombo);
+    xp += mode === "tap" ? xpGain(nextCombo) : 1;
     const gained: Unlock[] = [];
     while (xp >= xpToNext(level)) {
       xp -= xpToNext(level);
@@ -55,7 +58,7 @@ export function useGame() {
       ...prev,
       xp,
       level,
-      totalPops: prev.totalPops + 1,
+      totalPops: prev.totalPops + (mode === "tap" ? 1 : 0),
       bestCombo: Math.max(prev.bestCombo, nextCombo),
     };
     saveRef.current = next;
@@ -66,5 +69,5 @@ export function useGame() {
     return { combo: nextCombo, level, leveledUp: level > prev.level };
   }, []);
 
-  return { save, ready, combo, levelUp, pop };
+  return { save, ready, combo, levelUp, touch };
 }
