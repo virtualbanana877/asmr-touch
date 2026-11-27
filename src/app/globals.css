@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-@theme inline {
+/* 色はテーマで差し替えるので inline にしない */
+@theme {
   --color-night: #10243a;
   --color-shade: #1c3a56;
   --color-foam: #e9f3f7;
@@ -8,23 +9,86 @@
   --color-film-cyan: #8fe3e0;
   --color-film-lilac: #b9a7f5;
   --color-film-lemon: #ffe9a8;
+}
+
+@theme inline {
   --font-sans: var(--font-zen), system-ui, sans-serif;
+}
+
+:root {
+  --bg-glow: #1f4663;
+}
+
+/* ---------- テーマ ---------- */
+html[data-theme="dawn"] {
+  --color-night: #2a1c3a;
+  --color-shade: #47305c;
+  --bg-glow: #6b3f6e;
+}
+html[data-theme="forest"] {
+  --color-night: #0f2a22;
+  --color-shade: #1d4637;
+  --bg-glow: #1f5c46;
+}
+html[data-theme="aurora"] {
+  --color-night: #0b1b2e;
+  --color-shade: #173553;
+  --bg-glow: #1b6a6f;
+}
+html[data-theme="sakura"] {
+  --color-night: #2b1a28;
+  --color-shade: #4a2d47;
+  --bg-glow: #8a4a6f;
+}
+html[data-theme="galaxy"] {
+  --color-night: #07081c;
+  --color-shade: #1a1b42;
+  --bg-glow: #2a2a7a;
 }
 
 html,
 body {
   height: 100%;
-  background: var(--color-night);
+  background-color: var(--color-night);
   color: var(--color-foam);
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: radial-gradient(120% 70% at 50% 0%, #1f4663 0%, var(--color-night) 65%);
+  background: radial-gradient(120% 70% at 50% 0%, var(--bg-glow) 0%, var(--color-night) 65%);
 }
 
-/* しゃぼん玉：虹色の膜 + 左上のハイライト */
+/* オーロラ：ゆっくり色が流れる */
+html[data-theme="aurora"] body {
+  background: linear-gradient(120deg, #0b1b2e, #0f4a5a, #2a2a6a, #0f5a4a, #0b1b2e);
+  background-size: 300% 300%;
+  animation: aurora 20s ease-in-out infinite;
+}
+@keyframes aurora {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ほしぞら：星がまたたく */
+html[data-theme="galaxy"] body {
+  background:
+    radial-gradient(1.5px 1.5px at 12% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 28% 62%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 47% 33%, #cfd4ff 50%, transparent 51%),
+    radial-gradient(1px 1px at 63% 78%, #fff 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 78% 22%, #ffe9a8 50%, transparent 51%),
+    radial-gradient(1px 1px at 90% 55%, #fff 50%, transparent 51%),
+    radial-gradient(120% 70% at 50% 0%, var(--bg-glow) 0%, var(--color-night) 65%);
+  animation: twinkle 4s ease-in-out infinite alternate;
+}
+@keyframes twinkle {
+  from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; filter: brightness(0.95); }
+  to { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; filter: brightness(1.12); }
+}
+
+/* ---------- しゃぼん玉 ---------- */
 .bubble {
   position: absolute;
   border-radius: 9999px;
@@ -47,6 +111,22 @@ body {
   outline-offset: 4px;
 }
 
+/* 金の泡：めったに出ない */
+.bubble.golden {
+  border-color: rgba(255, 233, 168, 0.9);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.95) 0 5%, transparent 13%),
+    radial-gradient(circle at 50% 50%, rgba(255, 233, 168, 0.25) 50%, rgba(255, 200, 90, 0.6) 100%),
+    conic-gradient(from 0deg, rgba(255, 226, 140, 0.5), rgba(255, 255, 255, 0.35), rgba(255, 190, 90, 0.5), rgba(255, 226, 140, 0.5));
+  box-shadow:
+    inset 0 0 22px rgba(255, 255, 255, 0.5),
+    0 0 46px rgba(255, 214, 120, 0.55);
+  animation:
+    bubble-in 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both,
+    bubble-float 4s ease-in-out 0.35s infinite,
+    golden-glow 1.2s ease-in-out 0.35s infinite alternate;
+}
+
 @keyframes bubble-in {
   from { transform: scale(0.6); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
@@ -55,7 +135,12 @@ body {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-8px) scale(1.02); }
 }
+@keyframes golden-glow {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.3); }
+}
 
+/* ---------- コンボ ---------- */
 .combo-num { animation: combo-bump 0.18s ease-out; }
 @keyframes combo-bump {
   0% { transform: scale(1); }
@@ -69,18 +154,31 @@ body {
   to { transform: scaleX(0); }
 }
 
+/* コンボが続くと画面がほんのり光る（ゾーン） */
+.zone-glow {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(70% 50% at 50% 55%, rgba(255, 233, 168, 0.14), transparent 70%);
+  animation: zone-pulse 1.4s ease-in-out infinite alternate;
+}
+.zone-glow.strong {
+  background: radial-gradient(80% 60% at 50% 55%, rgba(244, 182, 210, 0.22), rgba(143, 227, 224, 0.12) 45%, transparent 75%);
+  animation-duration: 0.9s;
+}
+@keyframes zone-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
 .toast-in { animation: toast-in 0.3s ease-out both; }
 @keyframes toast-in {
   from { transform: translateY(12px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bubble { animation: bubble-in 0.01s both; }
-  .combo-num, .toast-in { animation: none; }
-}
-
-/* ゼリー：押すとつぶれて、離すとぷるんと戻る */
+/* ---------- ゼリー ---------- */
 .jelly {
   width: 220px;
   height: 200px;
@@ -109,7 +207,6 @@ body {
 .jelly[data-phase="release"] {
   animation: jelly-wobble 0.75s cubic-bezier(0.3, 0.6, 0.4, 1) both;
 }
-
 @keyframes jelly-idle {
   0%, 100% { transform: scale(1, 1); }
   50% { transform: scale(1.02, 0.98); }
@@ -123,7 +220,113 @@ body {
   100% { transform: scale(1, 1); }
 }
 
+/* ---------- ぷちぷちシート ---------- */
+.wrap-cell {
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.8) 0 8%, transparent 18%),
+    radial-gradient(circle at 50% 50%, rgba(143, 227, 224, 0.18), rgba(255, 255, 255, 0.08) 70%);
+  box-shadow:
+    inset 0 -4px 8px rgba(16, 36, 58, 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.08s ease-out, background 0.15s, box-shadow 0.15s;
+}
+.wrap-cell[data-popped="true"] {
+  transform: scale(0.82);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- みずたまり ---------- */
+.water-surface {
+  background:
+    radial-gradient(80% 55% at 50% 35%, rgba(143, 227, 224, 0.1), transparent 70%),
+    linear-gradient(180deg, transparent, rgba(143, 227, 224, 0.06));
+}
+
+/* ---------- かちかちキー ---------- */
+.keycap {
+  height: 56px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  color: var(--color-foam);
+  font-size: 1.25rem;
+  font-weight: 700;
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: transform 0.05s, box-shadow 0.05s;
+  touch-action: none;
+}
+.keycap[data-down="1"] {
+  transform: translateY(4px);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.1));
+}
+.keycap:focus-visible {
+  outline: 3px solid var(--color-film-lemon);
+  outline-offset: 3px;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .bubble.golden { animation: bubble-in 0.01s both; }
+  .combo-num, .toast-in { animation: none; }
+  .zone-glow { animation: none; }
   .jelly,
   .jelly[data-phase="release"] { animation: none; }
+  html[data-theme="aurora"] body,
+  html[data-theme="galaxy"] body { animation: none; }
+}
+
+/* ---------- パキパキスクイーズ ---------- */
+.squeeze {
+  width: 210px;
+  height: 210px;
+  border-radius: 46% 46% 50% 50% / 44% 44% 56% 56%;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.7) 0 7%, transparent 16%),
+    radial-gradient(rgba(255, 255, 255, 0.38) 1.5px, transparent 2px) 0 0 / 14px 14px,
+    radial-gradient(circle at 50% 60%, rgba(143, 227, 224, 0.78), rgba(185, 167, 245, 0.62) 75%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 -16px 30px rgba(16, 36, 58, 0.28),
+    inset 0 10px 20px rgba(255, 255, 255, 0.22),
+    0 18px 40px rgba(0, 0, 0, 0.25);
+  transform-origin: 50% 100%;
+  cursor: pointer;
+  touch-action: none;
+}
+.squeeze:focus-visible {
+  outline: 3px solid var(--color-film-lemon);
+  outline-offset: 6px;
+}
+
+/* ---------- プッシュポップ ---------- */
+.pop-cell {
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.7) 0 9%, transparent 22%),
+    radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--c) 92%, white), var(--c) 70%);
+  box-shadow:
+    inset 0 -5px 10px rgba(0, 0, 0, 0.18),
+    0 4px 0 color-mix(in srgb, var(--c) 55%, black),
+    0 6px 10px rgba(0, 0, 0, 0.2);
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out, filter 0.08s;
+}
+.pop-cell[data-in="true"] {
+  transform: translateY(3px) scale(0.94);
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 68%, black), var(--c) 85%);
+  box-shadow:
+    inset 0 6px 12px rgba(0, 0, 0, 0.35),
+    0 1px 0 color-mix(in srgb, var(--c) 55%, black),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+  filter: brightness(0.88);
 }

@@ -68,7 +68,10 @@ function hiss(c: AudioContext, t: number, filter: BiquadFilterType, freq: number
 const pitch = (combo: number) =>
   2 ** ((Math.min(Math.max(combo - 1, 0), 14) * 0.5) / 12) * (0.97 + Math.random() * 0.06);
 
-/* ---------- しゃぼん玉 ---------- */
+/** ペンタトニック（どの音を重ねても濁らない音階）の半音オフセット */
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
+
+/* ---------- しゃぼん玉（と、解放した音たち） ---------- */
 export function playPop(id: SoundId, combo: number) {
   const c = getCtx();
   if (!c) return;
@@ -95,9 +98,7 @@ export function playPop(id: SoundId, combo: number) {
       hiss(c, t, "lowpass", 1200, 0.7, 0.05, 0.12);
       break;
     case "pluck": {
-      // ペンタトニックのどれかを鳴らす（どの音でも濁らない）
-      const ratios = [1, 9 / 8, 5 / 4, 3 / 2, 5 / 3];
-      const f = 523.25 * r * ratios[Math.floor(Math.random() * ratios.length)];
+      const f = 523.25 * r * 2 ** (PENTA[Math.floor(Math.random() * 5)] / 12);
       tone(c, t, f, f, 0.5, 0.4);
       tone(c, t, f * 4, f * 4, 0.07, 0.1);
       break;
@@ -115,6 +116,28 @@ export function playPop(id: SoundId, combo: number) {
       tone(c, t, f, f, 0.9, 0.14);
       tone(c, t, f * 2.76, f * 2.76, 0.5, 0.08);
       tone(c, t, f * 5.4, f * 5.4, 0.25, 0.04);
+      break;
+    }
+    case "wood":
+      tone(c, t, 720 * r, 520 * r, 0.06, 0.5);
+      tone(c, t, 1440 * r, 1000 * r, 0.03, 0.15);
+      hiss(c, t, "bandpass", 1800, 1.5, 0.02, 0.25);
+      break;
+    case "sparkle": {
+      const s0 = Math.floor(Math.random() * 3);
+      for (let i = 0; i < 5; i++) {
+        const f = 1046.5 * r * 2 ** (PENTA[(s0 + i) % PENTA.length] / 12);
+        tone(c, t + i * 0.045, f, f, 0.3, 0.12);
+      }
+      hiss(c, t, "highpass", 7000, 0.7, 0.15, 0.06);
+      break;
+    }
+    case "harp": {
+      const s0 = Math.floor(Math.random() * 3);
+      for (let i = 0; i < 6; i++) {
+        const f = 392 * r * 2 ** (PENTA[s0 + i] / 12);
+        tone(c, t + i * 0.06, f, f, 0.7, 0.22, "triangle");
+      }
       break;
     }
   }
@@ -193,10 +216,181 @@ export function startSand() {
 }
 export type SandStream = NonNullable<ReturnType<typeof startSand>>;
 
+/* ---------- ぷちぷちシート ---------- */
+export function playWrap(combo: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const r = pitch(Math.min(combo, 8));
+  hiss(c, t, "bandpass", 3200 * r, 1.5, 0.05, 0.55);
+  tone(c, t, 1500 * r, 700 * r, 0.06, 0.3);
+}
+
+/* ---------- みずたまり ---------- */
+/** x: 0〜1（左右の位置で音階が変わる） */
+export function playRipple(x: number, strong: boolean) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const idx = Math.min(PENTA.length - 1, Math.max(0, Math.floor(x * PENTA.length)));
+  const f = 392 * 2 ** (PENTA[idx] / 12);
+  const peak = strong ? 0.4 : 0.2;
+  tone(c, t, f, f * 1.6, 0.1, peak);
+  tone(c, t + 0.02, f * 2, f * 2, 0.35, peak * 0.35);
+  hiss(c, t, "lowpass", 900, 0.7, 0.04, 0.1);
+}
+
+/* ---------- ビー玉 ---------- */
+export function playClack(intensity: number, idx: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const f = 1700 + (idx % 5) * 260;
+  const peak = 0.08 + 0.3 * intensity;
+  tone(c, t, f, f * 0.8, 0.05, peak);
+  tone(c, t, f * 1.5, f * 1.4, 0.03, peak * 0.5);
+  hiss(c, t, "highpass", 5000, 0.8, 0.02, 0.03 + 0.12 * intensity);
+}
+
+/* ---------- かちかちキー ---------- */
+/** type: 0 リニア / 1 クリッキー / 2 タクタイル / 3 スペース */
+export function playKey(type: number, combo: number, rate: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const r = pitch(Math.min(combo, 6)) * rate;
+  if (type === 0) {
+    tone(c, t, 180 * r, 90 * r, 0.07, 0.5);
+    hiss(c, t, "lowpass", 1500, 0.7, 0.04, 0.3);
+  } else if (type === 1) {
+    tone(c, t, 2800 * r, 1800 * r, 0.025, 0.35);
+    tone(c, t, 160 * r, 80 * r, 0.07, 0.4);
+    hiss(c, t, "highpass", 4000, 0.8, 0.02, 0.3);
+  } else if (type === 2) {
+    tone(c, t, 260 * r, 120 * r, 0.06, 0.5);
+    hiss(c, t, "bandpass", 2000, 1, 0.03, 0.35);
+  } else {
+    tone(c, t, 110 * r, 60 * r, 0.14, 0.6);
+    hiss(c, t, "lowpass", 800, 0.7, 0.1, 0.3);
+  }
+}
+
+/* ---------- スライム ---------- */
+/** のばしている間ずっと鳴る、ぬめっとした音。set(0〜1)で勢いを変える */
+export function startSlime() {
+  const c = getCtx();
+  if (!c) return null;
+  const s = c.createBufferSource();
+  s.buffer = loopBuffer(c);
+  s.loop = true;
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = 700;
+  bp.Q.value = 5;
+  const lp = c.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 2200;
+  const g = c.createGain();
+  g.gain.value = 0;
+  s.connect(bp).connect(lp).connect(g).connect(master!);
+  s.start();
+  return {
+    set(level: number) {
+      const t = c.currentTime;
+      g.gain.setTargetAtTime(level * 0.5, t, 0.05);
+      bp.frequency.setTargetAtTime(350 + level * 900 + Math.random() * 350, t, 0.03);
+    },
+    stop() {
+      const t = c.currentTime;
+      g.gain.setTargetAtTime(0, t, 0.08);
+      s.stop(t + 0.5);
+    },
+  };
+}
+export type SlimeStream = NonNullable<ReturnType<typeof startSlime>>;
+
+export function playSlimePress() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  tone(c, t, 150, 70, 0.12, 0.4);
+  hiss(c, t, "lowpass", 600, 0.8, 0.1, 0.35);
+  tone(c, t + 0.03, 420, 260, 0.06, 0.15);
+}
+
+/** 離したときの「ぬぽっ」。長くのばしたほど大きい */
+export function playSlimeRelease(strength: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  tone(c, t, 520, 170, 0.14, 0.15 + 0.35 * strength);
+  tone(c, t + 0.05, 300, 160, 0.12, 0.1 + 0.2 * strength);
+  hiss(c, t, "bandpass", 900, 2, 0.08, 0.15 + 0.25 * strength);
+}
+
+export function playSlimeBubble() {
+  const c = getCtx();
+  if (!c) return;
+  const f = 260 + Math.random() * 260;
+  tone(c, c.currentTime, f, f * 1.8, 0.07, 0.2);
+}
+
+/* ---------- パキパキスクイーズ ---------- */
+export function playCrack(strong: boolean) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const f = 3000 + Math.random() * 3000;
+  hiss(c, t, "highpass", f, 0.9, 0.02, strong ? 0.55 : 0.25);
+  hiss(c, t + 0.011, "bandpass", f * 0.7, 1.2, 0.015, strong ? 0.35 : 0.15);
+  tone(c, t, 1100 + Math.random() * 1400, 350, 0.025, strong ? 0.25 : 0.1);
+}
+
+/* ---------- プッシュポップ ---------- */
+/** col: 列（ペンタトニックの音階になる）。inward: 押しこむ=true、押し戻す=false */
+export function playPush(col: number, inward: boolean) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const jitter = 0.985 + Math.random() * 0.03;
+  const f = 330 * 2 ** (PENTA[col % PENTA.length] / 12) * (inward ? 1 : 0.75) * jitter;
+  if (inward) {
+    tone(c, t, f * 1.4, f, 0.09, 0.45);
+    tone(c, t, f * 2, f * 1.8, 0.04, 0.15);
+    hiss(c, t, "lowpass", 1400, 0.8, 0.03, 0.25);
+  } else {
+    tone(c, t, f * 0.7, f * 1.2, 0.08, 0.3);
+    hiss(c, t, "bandpass", 1000, 1, 0.03, 0.15);
+  }
+}
+
+/* ---------- ごほうび ---------- */
 export function playLevelUp() {
   const c = getCtx();
   if (!c) return;
   [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
     tone(c, c.currentTime + i * 0.09, f, f, 0.5, 0.22, "triangle");
+  });
+}
+
+/** 金の泡：きらきら駆け上がる */
+export function playGolden() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  [1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => {
+    tone(c, t + i * 0.06, f, f, 0.6, 0.2, "triangle");
+  });
+  hiss(c, t, "highpass", 6000, 0.7, 0.5, 0.1);
+}
+
+/** ひみつ発見：ふしぎな上昇音 */
+export function playSecret() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  [659.25, 783.99, 987.77, 1318.5, 1568].forEach((f, i) => {
+    tone(c, t + i * 0.08, f, f, 0.7, 0.18);
+    tone(c, t + i * 0.08, f * 2.76, f * 2.76, 0.3, 0.05);
   });
 }

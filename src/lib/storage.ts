@@ -4,14 +4,27 @@ export type SaveData = {
   level: number;
   totalPops: number;
   bestCombo: number;
+  theme: string;
+  effect: string;
+  found: string[]; // 見つけたひみつのID
 };
 
-export const DEFAULT_SAVE: SaveData = { version: 1, xp: 0, level: 1, totalPops: 0, bestCombo: 0 };
+export const DEFAULT_SAVE: SaveData = {
+  version: 1,
+  xp: 0,
+  level: 1,
+  totalPops: 0,
+  bestCombo: 0,
+  theme: "night",
+  effect: "droplet",
+  found: [],
+};
 
 const KEY = "asmr-touch:save";
 
 const num = (v: unknown, fallback: number, min: number) =>
   typeof v === "number" && Number.isFinite(v) && v >= min ? Math.floor(v) : fallback;
+const str = (v: unknown, fallback: string) => (typeof v === "string" && v.length < 40 ? v : fallback);
 
 export function loadSave(): SaveData {
   if (typeof window === "undefined") return DEFAULT_SAVE;
@@ -25,6 +38,9 @@ export function loadSave(): SaveData {
       level: num(p.level, 1, 1),
       totalPops: num(p.totalPops, 0, 0),
       bestCombo: num(p.bestCombo, 0, 0),
+      theme: str(p.theme, "night"),
+      effect: str(p.effect, "droplet"),
+      found: Array.isArray(p.found) ? p.found.filter((x): x is string => typeof x === "string") : [],
     };
   } catch {
     return DEFAULT_SAVE;

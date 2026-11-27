@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { TouchMode, TouchResult } from "@/hooks/useGame";
 import { rand } from "@/hooks/useParticles";
 import { startSand, type SandStream } from "@/lib/audio";
+import type { StageProps } from "./stage";
 
 const COL = 4; // 砂山の1列の幅(px)
-const DRAIN = 6; // 砂が1秒に沈む量(px)。積もり続けないようにゆっくり消す
+const DRAIN = 1.5; // 砂が1秒に沈む量(px)。積もり続けないようにゆっくり消す
 const MAX_GRAINS = 1500;
+const GRAINS_PER_XP = 50; // 砂を50粒出すごとに経験値+1
 
 type Grain = { x: number; y: number; vx: number; vy: number };
 
-export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => TouchResult }) {
+export default function SandStage({ onTouch, onDiscover }: StageProps) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const grains = useRef<Grain[]>([]);
@@ -19,7 +20,13 @@ export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => T
   const stream = useRef<SandStream | null>(null);
   const pointer = useRef<{ x: number; y: number; t: number } | null>(null);
   const lastMove = useRef(0);
+  const poured = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const discoverRef = useRef(onDiscover);
+
+  useEffect(() => {
+    discoverRef.current = onDiscover;
+  });
 
   // 砂のシミュレーション（粒が落ちて、斜面を転がって、山になる）
   useEffect(() => {
@@ -33,6 +40,7 @@ export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => T
     let last = 0;
     let running = false;
     let raf = 0;
+    let duneFound = false;
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -79,9 +87,15 @@ export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => T
       }
 
       let total = 0;
+      let peak = 0;
       for (let i = 0; i < n; i++) {
         heights[i] = Math.max(0, heights[i] - DRAIN * dt);
         total += heights[i];
+        if (heights[i] > peak) peak = heights[i];
+      }
+      if (!duneFound && peak > h * 0.25) {
+        duneFound = true;
+        discoverRef.current("dune");
       }
 
       ctx.clearRect(0, 0, w, h);
@@ -137,12 +151,21 @@ export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => T
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  /** 砂を出す。出した量に応じて経験値が入る */
   const addGrains = (x: number, y: number, count: number) => {
     const list = grains.current;
+    let added = 0;
     for (let i = 0; i < count && list.length < MAX_GRAINS; i++) {
       list.push({ x: x + rand(-8, 8), y: y + rand(-4, 4), vx: rand(-30, 30), vy: rand(20, 120) });
+      added++;
     }
     wake.current();
+    poured.current += added;
+    const units = Math.floor(poured.current / GRAINS_PER_XP);
+    if (units > 0) {
+      poured.current -= units * GRAINS_PER_XP;
+      onTouch("hold", units);
+    }
   };
 
   const end = () => {
@@ -167,15 +190,10 @@ export default function SandStage({ onTouch }: { onTouch: (mode: TouchMode) => T
         pointer.current = { ...p, t: now };
         lastMove.current = now;
         stream.current = startSand();
-        onTouch("tap");
         addGrains(p.x, p.y, 6);
-
-        let ticks = 0;
+        // 止まっている間は音を消す
         timer.current = setInterval(() => {
-          ticks += 1;
-          const idle = performance.now() - lastMove.current > 150;
-          if (idle) stream.current?.set(0);
-          else if (ticks % 3 === 0) onTouch("hold"); // なぞっている間だけXP
+          if (performance.now() - lastMove.current > 150) stream.current?.set(0);
         }, 100);
       }}
       onPointerMove={(e) => {

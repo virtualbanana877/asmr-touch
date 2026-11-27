@@ -6,7 +6,7 @@ type Props = { level: number; current: ObjectId; onSelect: (id: ObjectId) => voi
 
 export default function ObjectSwitcher({ level, current, onSelect }: Props) {
   return (
-    <nav aria-label="さわるもの" className="flex gap-2 px-5 pb-2">
+    <nav aria-label="さわるもの" className="flex gap-2 overflow-x-auto px-5 pb-2">
       {OBJECTS.map((o) => {
         const open = o.level <= level;
         const active = o.id === current;
@@ -17,7 +17,7 @@ export default function ObjectSwitcher({ level, current, onSelect }: Props) {
             disabled={!open}
             aria-pressed={active}
             onClick={() => onSelect(o.id as ObjectId)}
-            className={`rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-film-lemon ${
+            className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-film-lemon ${
               active
                 ? "bg-film-cyan font-bold text-night"
                 : open

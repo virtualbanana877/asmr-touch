@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useParticles } from "@/hooks/useParticles";
-import type { TouchMode, TouchResult } from "@/hooks/useGame";
 import { playBoing, playJellyBubble, playSquish } from "@/lib/audio";
+import type { StageProps } from "./stage";
 
 type Phase = "idle" | "pressed" | "release";
 const HOLD_TICK_MS = 350;
 
-export default function JellyStage({ onTouch }: { onTouch: (mode: TouchMode) => TouchResult }) {
-  const { containerRef, canvasRef, sparkle } = useParticles();
+export default function JellyStage({ onTouch, onDiscover, effect }: StageProps) {
+  const { containerRef, canvasRef, sparkle } = useParticles(effect);
   const jellyRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [tilt, setTilt] = useState(0);
@@ -55,11 +55,13 @@ export default function JellyStage({ onTouch }: { onTouch: (mode: TouchMode) => 
     if (!pressing.current) return;
     pressing.current = false;
     clearInterval(holdTimer.current);
-    const held = Math.min((performance.now() - pressedAt.current) / 1000, 2);
+    const raw = (performance.now() - pressedAt.current) / 1000;
+    const held = Math.min(raw, 2);
     setPhase("release");
     playBoing(held);
     const c = center();
     sparkle(c.x, c.y, 6 + Math.floor(held * 8));
+    if (raw >= 5) onDiscover("stretch");
     releaseTimer.current = setTimeout(() => setPhase("idle"), 750);
   };
 

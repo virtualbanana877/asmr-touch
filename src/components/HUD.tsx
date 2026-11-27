@@ -1,13 +1,23 @@
 import type { CSSProperties } from "react";
 
-type Props = { level: number; xp: number; need: number; combo: number; windowMs: number };
+type Props = {
+  level: number;
+  title: string;
+  xp: number;
+  need: number;
+  combo: number;
+  windowMs: number;
+};
 
-export default function HUD({ level, xp, need, combo, windowMs }: Props) {
+export default function HUD({ level, title, xp, need, combo, windowMs }: Props) {
   const pct = Math.min(100, Math.round((xp / need) * 100));
   return (
     <header className="px-5 pt-5">
       <div className="flex items-end justify-between">
-        <p className="text-3xl font-bold">Lv.{level}</p>
+        <div>
+          <p className="text-3xl font-bold">Lv.{level}</p>
+          {title && <p className="text-sm text-white/55">{title}</p>}
+        </div>
         <p className="text-sm text-white/60">
           {xp} / {need} XP
         </p>

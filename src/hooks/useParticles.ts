@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { PALETTE } from "@/lib/game";
+import { EFFECT_STYLE, PALETTE, type EffectId, type Shape } from "@/lib/game";
 
 type Particle = {
   x: number;
@@ -9,20 +9,72 @@ type Particle = {
   vx: number;
   vy: number;
   r: number;
-  age: number;
+  age: number; // マイナスなら出現待ち
   life: number;
   color: string;
   kind: "drop" | "ring" | "star";
+  shape: Shape;
+  spin: number;
 };
 
 export const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
+type Base = Omit<Particle, "shape" | "spin"> & Partial<Pick<Particle, "shape" | "spin">>;
+const P = (p: Base): Particle => ({ shape: "circle", spin: 0, ...p });
+
+function drawShape(ctx: CanvasRenderingContext2D, p: Particle, k: number) {
+  const r = p.r * (1 - k * 0.5);
+  ctx.fillStyle = p.color;
+  ctx.beginPath();
+  switch (p.shape) {
+    case "star": {
+      const s = r * 2;
+      ctx.moveTo(p.x, p.y - s);
+      ctx.lineTo(p.x + s * 0.35, p.y - s * 0.35);
+      ctx.lineTo(p.x + s, p.y);
+      ctx.lineTo(p.x + s * 0.35, p.y + s * 0.35);
+      ctx.lineTo(p.x, p.y + s);
+      ctx.lineTo(p.x - s * 0.35, p.y + s * 0.35);
+      ctx.lineTo(p.x - s, p.y);
+      ctx.lineTo(p.x - s * 0.35, p.y - s * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case "petal": {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.spin + p.age * 5);
+      ctx.ellipse(0, 0, r * 2, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case "heart": {
+      const s = r * 1.3;
+      ctx.moveTo(p.x, p.y + s);
+      ctx.bezierCurveTo(p.x - s * 1.8, p.y - s * 0.3, p.x - s * 0.8, p.y - s * 1.5, p.x, p.y - s * 0.5);
+      ctx.bezierCurveTo(p.x + s * 0.8, p.y - s * 1.5, p.x + s * 1.8, p.y - s * 0.3, p.x, p.y + s);
+      ctx.fill();
+      break;
+    }
+    default:
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+  }
+}
+
 /** Canvasのパーティクル。粒子がある間だけアニメーションループを回す */
-export function useParticles() {
+export function useParticles(effect: EffectId = "droplet") {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Particle[]>([]);
   const startLoop = useRef<() => void>(() => {});
+  const effectRef = useRef<EffectId>(effect);
+
+  useEffect(() => {
+    effectRef.current = effect;
+  }, [effect]);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -55,6 +107,7 @@ export function useParticles() {
       for (let i = list.length - 1; i >= 0; i--) {
         const p = list[i];
         p.age += dt;
+        if (p.age < 0) continue;
         if (p.age >= p.life) {
           list.splice(i, 1);
           continue;
@@ -72,10 +125,7 @@ export function useParticles() {
           p.vy += 380 * dt;
           p.x += p.vx * dt;
           p.y += p.vy * dt;
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.r * (1 - k * 0.5), 0, Math.PI * 2);
-          ctx.fill();
+          drawShape(ctx, p, k);
         } else {
           p.x += p.vx * dt;
           p.y += p.vy * dt;
@@ -112,68 +162,97 @@ export function useParticles() {
     };
   }, []);
 
-  /** 泡が割れる大きなエフェクト。コンボで豪華になる */
+  const trim = () => {
+    const list = particles.current;
+    if (list.length > 400) list.splice(0, list.length - 400);
+  };
+
+  /** 大きな破裂エフェクト。コンボで豪華になる */
   const burst = useCallback((x: number, y: number, combo: number, size: number) => {
     const list = particles.current;
+    const style = EFFECT_STYLE[effectRef.current];
     const n = Math.min(12 + combo * 2, 56);
     for (let i = 0; i < n; i++) {
       const a = rand(0, Math.PI * 2);
       const s = rand(90, 260) + Math.min(combo, 20) * 6;
-      list.push({
-        x, y,
-        vx: Math.cos(a) * s,
-        vy: Math.sin(a) * s - 60,
-        r: rand(2.5, 6.5),
-        age: 0,
-        life: rand(0.5, 0.9),
-        color: PALETTE[i % PALETTE.length],
-        kind: "drop",
-      });
+      list.push(
+        P({
+          x, y,
+          vx: Math.cos(a) * s,
+          vy: Math.sin(a) * s - 60,
+          r: rand(2.5, 6.5),
+          age: 0,
+          life: rand(0.5, 0.9),
+          color: style.colors[i % style.colors.length],
+          kind: "drop",
+          shape: style.shape,
+          spin: rand(0, Math.PI),
+        }),
+      );
     }
-    list.push({ x, y, vx: 0, vy: 0, r: size * 0.75, age: 0, life: 0.45, color: PALETTE[0], kind: "ring" });
+    list.push(P({ x, y, vx: 0, vy: 0, r: size * 0.75, age: 0, life: 0.45, color: PALETTE[0], kind: "ring" }));
     if (combo >= 10) {
-      list.push({ x, y, vx: 0, vy: 0, r: size * 1.2, age: 0, life: 0.65, color: PALETTE[1], kind: "ring" });
+      list.push(P({ x, y, vx: 0, vy: 0, r: size * 1.2, age: 0, life: 0.65, color: PALETTE[1], kind: "ring" }));
     }
     if (combo >= 20) {
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2 + rand(-0.2, 0.2);
         const s = rand(120, 220);
-        list.push({
-          x, y,
-          vx: Math.cos(a) * s,
-          vy: Math.sin(a) * s,
-          r: rand(6, 11),
-          age: 0,
-          life: rand(0.5, 0.8),
-          color: PALETTE[3],
-          kind: "star",
-        });
+        list.push(
+          P({
+            x, y,
+            vx: Math.cos(a) * s,
+            vy: Math.sin(a) * s,
+            r: rand(6, 11),
+            age: 0,
+            life: rand(0.5, 0.8),
+            color: PALETTE[3],
+            kind: "star",
+          }),
+        );
       }
     }
-    if (list.length > 400) list.splice(0, list.length - 400);
+    trim();
     startLoop.current();
   }, []);
 
-  /** ゼリー用の小さなしずく */
+  /** 小さなしずく（ゼリー・ぷちぷち用） */
   const sparkle = useCallback((x: number, y: number, count: number) => {
     const list = particles.current;
+    const style = EFFECT_STYLE[effectRef.current];
     for (let i = 0; i < count; i++) {
       const a = rand(0, Math.PI * 2);
       const s = rand(40, 150);
-      list.push({
-        x, y,
-        vx: Math.cos(a) * s,
-        vy: Math.sin(a) * s - 40,
-        r: rand(2, 5),
-        age: 0,
-        life: rand(0.5, 0.8),
-        color: PALETTE[i % PALETTE.length],
-        kind: "drop",
-      });
+      list.push(
+        P({
+          x, y,
+          vx: Math.cos(a) * s,
+          vy: Math.sin(a) * s - 40,
+          r: rand(2, 5),
+          age: 0,
+          life: rand(0.5, 0.8),
+          color: style.colors[i % style.colors.length],
+          kind: "drop",
+          shape: style.shape,
+          spin: rand(0, Math.PI),
+        }),
+      );
     }
-    if (list.length > 400) list.splice(0, list.length - 400);
+    trim();
     startLoop.current();
   }, []);
 
-  return { containerRef, canvasRef, burst, sparkle };
+  /** 波紋。時間差で3本の輪が広がる */
+  const ripple = useCallback((x: number, y: number, size: number, color: string) => {
+    const list = particles.current;
+    for (let i = 0; i < 3; i++) {
+      list.push(
+        P({ x, y, vx: 0, vy: 0, r: size * (1 + i * 0.25), age: -i * 0.16, life: 1.1, color, kind: "ring" }),
+      );
+    }
+    trim();
+    startLoop.current();
+  }, []);
+
+  return { containerRef, canvasRef, burst, sparkle, ripple };
 }
