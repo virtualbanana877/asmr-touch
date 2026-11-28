@@ -6,11 +6,13 @@ import BrushStage from "@/components/BrushStage";
 import BubbleStage from "@/components/BubbleStage";
 import CrumpleStage from "@/components/CrumpleStage";
 import CutStage from "@/components/CutStage";
+import FoamStage from "@/components/FoamStage";
 import HUD from "@/components/HUD";
 import JellyStage from "@/components/JellyStage";
 import KeysStage from "@/components/KeysStage";
 import MarbleStage from "@/components/MarbleStage";
 import ObjectSwitcher from "@/components/ObjectSwitcher";
+import PagesStage from "@/components/PagesStage";
 import PushPopStage from "@/components/PushPopStage";
 import SandStage from "@/components/SandStage";
 import ScratchStage from "@/components/ScratchStage";
@@ -18,6 +20,8 @@ import SlimeStage from "@/components/SlimeStage";
 import SqueezeStage from "@/components/SqueezeStage";
 import type { StageProps } from "@/components/stage";
 import WaterStage from "@/components/WaterStage";
+import WoodSoupStage from "@/components/WoodSoupStage";
+import ZipStage from "@/components/ZipStage";
 import WrapStage from "@/components/WrapStage";
 import { useGame, type TouchMode } from "@/hooks/useGame";
 import { playLevelUp, playSecret, setPan } from "@/lib/audio";
@@ -38,6 +42,10 @@ const STAGES: Record<ObjectId, ComponentType<StageProps>> = {
   cut: CutStage,
   crumple: CrumpleStage,
   scratch: ScratchStage,
+  foam: FoamStage,
+  woodsoup: WoodSoupStage,
+  zip: ZipStage,
+  pages: PagesStage,
 };
 
 const HINTS: Record<ObjectId, string> = {
@@ -55,6 +63,10 @@ const HINTS: Record<ObjectId, string> = {
   cut: "なぞって削る。タップで切りこみ。素材も選べる",
   crumple: "なぞって、くしゃくしゃに握りつぶす。素材も選べる",
   scratch: "指で絵を描く。道具によってカリカリの音が変わる",
+  foam: "指でなぞって泡を消す。時間がたつと、また生えてくる",
+  woodsoup: "木のスプーンで、木のボールをかき混ぜる",
+  zip: "ジッパーのつまみをひっぱる。テープはなぞってはがす",
+  pages: "左右にスワイプ、または左右をタップでページをめくる",
 };
 
 export default function Home() {

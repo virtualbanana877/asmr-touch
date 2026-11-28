@@ -571,6 +571,104 @@ export function startScratch(p: Pen) {
   return noiseStream([{ type: "highpass", freq: 3500, q: 0.6 }, { type: "bandpass", freq: 6500, q: 0.5 }], 0.22, 1, (l) => 5500 + l * 1500);
 }
 
+/* ---------- ふわふわ泡 ---------- */
+export function startFoam() {
+  return noiseStream([{ type: "highpass", freq: 4500, q: 0.5 }], 0.25, 0, (l) => 4000 + l * 3000);
+}
+/** 泡がひとつ消える、ごく小さな「ぷち」 */
+export function playFoamPop() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  hiss(c, t, "highpass", 7000 + Math.random() * 2000, 0.8, 0.012, 0.12);
+  tone(c, t, 2500 + Math.random() * 2000, 1500, 0.01, 0.05);
+}
+
+/* ---------- ウッドスープ ---------- */
+/** 木のボールがぶつかる「コロッ」。idx（0〜7）でボールごとに音の高さが少し違う */
+export function playWoodClick(intensity: number, idx: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const f = 450 + (idx % 8) * 70;
+  const peak = 0.1 + 0.4 * Math.min(1, intensity);
+  tone(c, t, f, f * 0.9, 0.05, peak);
+  tone(c, t, f * 2.4, f * 2.2, 0.03, peak * 0.4);
+  hiss(c, t, "bandpass", 1800, 1, 0.02, 0.05 + 0.15 * Math.min(1, intensity));
+}
+/** ボールが転がり続ける「ゴロゴロ」と、水のゆれる音 */
+export function startRoll() {
+  return noiseStream(
+    [
+      { type: "highpass", freq: 150, q: 0.5 },
+      { type: "bandpass", freq: 700, q: 0.8 },
+    ],
+    0.35,
+    1,
+    (l) => 450 + l * 500,
+  );
+}
+
+/* ---------- ジッパー・テープ ---------- */
+/** ジッパーの歯がかみ合う小さな「カチカチ」を、count個ぶん続けて鳴らす */
+export function playZipTicks(count: number, speed: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const n = Math.min(6, Math.max(1, count));
+  const k = 0.5 + 0.5 * Math.min(1, speed);
+  for (let i = 0; i < n; i++) {
+    const f = 3200 + Math.random() * 1200;
+    tone(c, t + i * 0.012, f, f * 0.8, 0.012, 0.18 * k);
+    hiss(c, t + i * 0.012, "highpass", 5500, 0.8, 0.01, 0.15 * k);
+  }
+}
+/** テープをはがしている間の「ビリビリ」 */
+export function startTear() {
+  return noiseStream(
+    [
+      { type: "highpass", freq: 1500, q: 0.7 },
+      { type: "bandpass", freq: 3500, q: 1.2 },
+    ],
+    0.55,
+    1,
+    (l) => 2500 + l * 2500,
+  );
+}
+/** のりがはがれる「ぺり」 */
+export function playPeelTick() {
+  const c = getCtx();
+  if (!c) return;
+  hiss(c, c.currentTime, "bandpass", 4500, 1, 0.015, 0.3);
+}
+/** テープが完全にはがれた */
+export function playTapeOff() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  hiss(c, t, "highpass", 3000, 0.8, 0.12, 0.4);
+  tone(c, t, 400, 150, 0.08, 0.2);
+}
+
+/* ---------- 本のページ ---------- */
+/** speed: 0〜1。速くめくるほど大きい */
+export function playPageTurn(speed: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const k = 0.5 + 0.5 * Math.min(1, Math.max(0, speed));
+  hiss(c, t, "bandpass", 2500, 0.7, 0.18, 0.3 * k);
+  hiss(c, t + 0.02, "highpass", 6000, 0.6, 0.12, 0.1 * k);
+}
+/** ページがぱさっと落ち着く */
+export function playPageLand() {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  hiss(c, t, "lowpass", 900, 0.7, 0.06, 0.25);
+  tone(c, t, 120, 70, 0.06, 0.2);
+}
+
 /* ---------- ごほうび ---------- */
 export function playLevelUp() {
   const c = getCtx();

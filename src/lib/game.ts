@@ -2,7 +2,7 @@ export const COMBO_WINDOW_MS = 1500;
 
 export const PALETTE = ["#f4b6d2", "#8fe3e0", "#b9a7f5", "#ffe9a8"] as const;
 
-export type ObjectId = "bubble" | "jelly" | "sand" | "wrap" | "slime" | "water" | "pushpop" | "marble" | "keys" | "squeeze" | "brush" | "cut" | "crumple" | "scratch";
+export type ObjectId = "bubble" | "jelly" | "sand" | "wrap" | "slime" | "water" | "pushpop" | "marble" | "keys" | "squeeze" | "brush" | "cut" | "crumple" | "scratch" | "foam" | "woodsoup" | "zip" | "pages";
 export type SoundId =
   | "soft" | "deep" | "glass" | "drop" | "pluck" | "crackle" | "chime" | "wood" | "sparkle" | "harp";
 export type ThemeId = "night" | "dawn" | "forest" | "aurora" | "sakura" | "galaxy";
@@ -36,6 +36,7 @@ export const UNLOCKS: Unlock[] = [
   { id: "deep", kind: "sound", name: "ぽこん", desc: "丸くて低い、水っぽい音", level: 2 },
   { id: "jelly", kind: "object", name: "ゼリー", desc: "長押しでつぶして、離すとぷるん", level: 3 },
   { id: "glass", kind: "sound", name: "きらん", desc: "ガラスのような高い余韻", level: 4 },
+  { id: "foam", kind: "object", name: "ふわふわ泡", desc: "なぞって消すと、しゅわしゅわ", level: 4 },
   { id: "dawn", kind: "theme", name: "あけぼの", desc: "明け方の紫", level: 4 },
   { id: "sand", kind: "object", name: "さらさら砂", desc: "指でなぞると流れる砂", level: 5 },
   { id: "t5", kind: "title", name: "泡つぶし", desc: "泡を割るのが日課", level: 5 },
@@ -48,6 +49,7 @@ export const UNLOCKS: Unlock[] = [
   { id: "pluck", kind: "sound", name: "ぽろん", desc: "木の鍵盤を弾いたような音", level: 8 },
   { id: "forest", kind: "theme", name: "もりの底", desc: "苔むした深い緑", level: 8 },
   { id: "crackle", kind: "sound", name: "ぱちぱち", desc: "細かく弾ける小さな音", level: 9 },
+  { id: "woodsoup", kind: "object", name: "ウッドスープ", desc: "木のボールを、木のスプーンでかき混ぜる", level: 9 },
   { id: "t9", kind: "title", name: "ぷちぷち職人", desc: "指先が覚えている", level: 9 },
 
   { id: "water", kind: "object", name: "みずたまり", desc: "触れると波紋が広がる", level: 10 },
@@ -60,6 +62,7 @@ export const UNLOCKS: Unlock[] = [
   { id: "wood", kind: "sound", name: "コトッ", desc: "木をたたく温かい音", level: 14 },
   { id: "cut", kind: "object", name: "けずるブロック", desc: "石けん・砂・氷を、きって削る", level: 14 },
   { id: "t15", kind: "title", name: "ASMRの住人", desc: "ここが居場所", level: 15 },
+  { id: "zip", kind: "object", name: "ジッパー・テープ", desc: "ジーッと開けて、ビリッとはがす", level: 15 },
 
   { id: "keys", kind: "object", name: "かちかちキー", desc: "打鍵感の違う4種類のキー", level: 16 },
   { id: "squeeze", kind: "object", name: "パキパキスクイーズ", desc: "ロウをパキパキ割ると、中からふにゅふにゅ", level: 18 },
@@ -67,6 +70,7 @@ export const UNLOCKS: Unlock[] = [
   { id: "heart", kind: "effect", name: "ハート", desc: "ふわっと広がるハート", level: 17 },
   { id: "scratch", kind: "object", name: "カリカリお絵かき", desc: "えんぴつやクレヨンで絵を描く", level: 17 },
   { id: "sakura", kind: "theme", name: "さくら夜", desc: "夜桜のような紅", level: 18 },
+  { id: "pages", kind: "object", name: "本のページ", desc: "ぱらぱらめくる紙の音", level: 19 },
   { id: "harp", kind: "sound", name: "ぽろろん", desc: "ハープのような駆け上がり", level: 20 },
   { id: "t20", kind: "title", name: "いやしの達人", desc: "まわりまで静かになる", level: 20 },
   { id: "galaxy", kind: "theme", name: "ほしぞら", desc: "星が瞬く夜空", level: 22 },
@@ -92,6 +96,11 @@ export const SECRETS: Secret[] = [
   { id: "shaved", name: "削りきり", hint: "ブロックが小さくなるまで", note: "ブロックをほとんど削りきった。" },
   { id: "crumpler", name: "くしゃくしゃ名人", hint: "どの素材も、ぎゅっと", note: "紙・ビニール・セロファンを全部くしゃくしゃにした。" },
   { id: "artist", name: "ちいさな画家", hint: "白い紙をたっぷり使う", note: "たくさん絵を描いた。" },
+  { id: "foamclear", name: "まっさら", hint: "ふわふわを、ぜんぶ消す", note: "泡をほとんど消し去った。" },
+  { id: "woodstir", name: "ぐるぐる名人", hint: "ゆっくり、長く、ぐるぐる", note: "ウッドスープを長くかき混ぜた。" },
+  { id: "zipfull", name: "全開", hint: "端から端まで", note: "ジッパーを端まで開けきった。" },
+  { id: "tapes", name: "はがし職人", hint: "貼ってあるものを、ぜんぶ", note: "テープを全部はがした。" },
+  { id: "bookend", name: "さいごのページ", hint: "めくり続けた、その先", note: "本を最後のページまでめくった。" },
 ];
 export const SECRET_XP = 20;
 
