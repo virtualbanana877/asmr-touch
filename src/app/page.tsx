@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useState, type ComponentType } from "react";
+import BrushStage from "@/components/BrushStage";
 import BubbleStage from "@/components/BubbleStage";
+import CrumpleStage from "@/components/CrumpleStage";
+import CutStage from "@/components/CutStage";
 import HUD from "@/components/HUD";
 import JellyStage from "@/components/JellyStage";
 import KeysStage from "@/components/KeysStage";
@@ -10,13 +13,14 @@ import MarbleStage from "@/components/MarbleStage";
 import ObjectSwitcher from "@/components/ObjectSwitcher";
 import PushPopStage from "@/components/PushPopStage";
 import SandStage from "@/components/SandStage";
+import ScratchStage from "@/components/ScratchStage";
 import SlimeStage from "@/components/SlimeStage";
 import SqueezeStage from "@/components/SqueezeStage";
 import type { StageProps } from "@/components/stage";
 import WaterStage from "@/components/WaterStage";
 import WrapStage from "@/components/WrapStage";
 import { useGame, type TouchMode } from "@/hooks/useGame";
-import { playLevelUp, playSecret } from "@/lib/audio";
+import { playLevelUp, playSecret, setPan } from "@/lib/audio";
 import { asEffect, COMBO_WINDOW_MS, titleAt, xpToNext, type ObjectId } from "@/lib/game";
 
 const STAGES: Record<ObjectId, ComponentType<StageProps>> = {
@@ -30,6 +34,10 @@ const STAGES: Record<ObjectId, ComponentType<StageProps>> = {
   marble: MarbleStage,
   keys: KeysStage,
   squeeze: SqueezeStage,
+  brush: BrushStage,
+  cut: CutStage,
+  crumple: CrumpleStage,
+  scratch: ScratchStage,
 };
 
 const HINTS: Record<ObjectId, string> = {
@@ -43,6 +51,10 @@ const HINTS: Record<ObjectId, string> = {
   marble: "タップでビー玉を落とす",
   keys: "キーを打つ。PCなら実際のキーボードでも鳴る",
   squeeze: "長押しで握りこむ。ロウがパキパキ割れて、中身が出てくる",
+  brush: "指でなでるとブラシの音。左右の位置で聞こえ方が変わる（イヤホン推奨）",
+  cut: "なぞって削る。タップで切りこみ。素材も選べる",
+  crumple: "なぞって、くしゃくしゃに握りつぶす。素材も選べる",
+  scratch: "指で絵を描く。道具によってカリカリの音が変わる",
 };
 
 export default function Home() {
@@ -69,6 +81,12 @@ export default function Home() {
 
   const Stage = STAGES[object];
 
+  // 指の左右の位置を、音の左右の定位にする（イヤホンだと触った方から聞こえる）
+  const updatePan = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setPan(((e.clientX - r.left) / Math.max(r.width, 1)) * 1.7 - 0.85);
+  };
+
   return (
     <main className="mx-auto flex h-dvh max-w-md flex-col">
       {combo >= 15 && <div className={combo >= 30 ? "zone-glow strong" : "zone-glow"} aria-hidden />}
@@ -82,16 +100,22 @@ export default function Home() {
         windowMs={COMBO_WINDOW_MS}
       />
 
-      {ready ? (
-        <Stage
-          key={object}
-          onTouch={handleTouch}
-          onDiscover={handleDiscover}
-          effect={asEffect(save.effect)}
-        />
-      ) : (
-        <div className="flex-1" />
-      )}
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        onPointerDownCapture={updatePan}
+        onPointerMoveCapture={updatePan}
+      >
+        {ready ? (
+          <Stage
+            key={object}
+            onTouch={handleTouch}
+            onDiscover={handleDiscover}
+            effect={asEffect(save.effect)}
+          />
+        ) : (
+          <div className="flex-1" />
+        )}
+      </div>
 
       <p className="px-5 pb-2 text-center text-sm text-white/50">{HINTS[object]}</p>
       <ObjectSwitcher level={save.level} current={object} onSelect={setObject} />

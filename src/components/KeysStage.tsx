@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { playKey } from "@/lib/audio";
+import { playKey, setPan } from "@/lib/audio";
 import type { StageProps } from "./stage";
 
 const ROWS = [
@@ -20,6 +20,7 @@ export default function KeysStage({ onTouch, onDiscover }: StageProps) {
   const press = (id: number) => {
     const res = onTouch("tap");
     const row = id === SPACE ? 3 : Math.floor(id / 4);
+    setPan(id === SPACE ? 0 : ((id % 4) / 3) * 1.4 - 0.7); // 列の位置から聞こえる
     playKey(row, res.combo, id === SPACE ? 0.8 : RATES[id % 4]);
     count.current += 1;
     if (count.current >= 50) onDiscover("typist");

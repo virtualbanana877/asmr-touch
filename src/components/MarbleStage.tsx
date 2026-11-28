@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { rand } from "@/hooks/useParticles";
-import { playClack } from "@/lib/audio";
+import { playClack, setPan } from "@/lib/audio";
 import { PALETTE } from "@/lib/game";
 import type { StageProps } from "./stage";
 
@@ -56,9 +56,10 @@ export default function MarbleStage({ onTouch, onDiscover }: StageProps) {
       const list = marbles.current;
 
       let sounds = 0;
-      const click = (intensity: number, idx: number) => {
+      const click = (intensity: number, idx: number, x: number) => {
         if (sounds < 4 && intensity > 0.08) {
           sounds++;
+          setPan((x / Math.max(w, 1)) * 1.7 - 0.85); // ビー玉の位置から聞こえる
           playClack(Math.min(1, intensity), idx);
         }
       };
@@ -95,7 +96,7 @@ export default function MarbleStage({ onTouch, onDiscover }: StageProps) {
               a.vy -= imp * ny;
               b.vx += imp * nx;
               b.vy += imp * ny;
-              if (it === 0) click(approach / 900, a.idx);
+              if (it === 0) click(approach / 900, a.idx, a.x);
             }
           }
         }
@@ -104,7 +105,7 @@ export default function MarbleStage({ onTouch, onDiscover }: StageProps) {
           if (m.y + m.r > h) {
             m.y = h - m.r;
             if (m.vy > 0) {
-              click(m.vy / 1000, m.idx);
+              click(m.vy / 1000, m.idx, m.x);
               m.vy = m.vy > 50 ? -m.vy * BOUNCE : 0;
             }
             m.vx *= 1 - Math.min(1, 3 * dt);

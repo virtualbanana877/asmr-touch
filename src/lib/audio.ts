@@ -12,6 +12,25 @@ const streams = new Set<Stream>();
 export function stopAllStreams() {
   for (const s of [...streams]) s.stop();
 }
+export type AudioStream = Stream;
+
+/* ---------- 左右の定位（ステレオパン） ---------- */
+let curPan = 0;
+/** -1(左) 〜 1(右)。次に鳴る音と、鳴り続けている音に反映される */
+export function setPan(p: number) {
+  curPan = Math.max(-1, Math.min(1, p));
+}
+function makePanner(c: AudioContext): StereoPannerNode | null {
+  return typeof c.createStereoPanner === "function" ? c.createStereoPanner() : null;
+}
+/** 音の出口。いまのパンを反映したパナーを通してマスターにつなぐ */
+function out(c: AudioContext): AudioNode {
+  const p = makePanner(c);
+  if (!p) return master!;
+  p.pan.value = curPan;
+  p.connect(master!);
+  return p;
+}
 
 /** 最初のユーザー操作の中で呼ばれる前提（自動再生制限対策） */
 function getCtx(): AudioContext | null {
@@ -60,7 +79,7 @@ function tone(c: AudioContext, t: number, f0: number, f1: number, decay: number,
   o.frequency.setValueAtTime(f0, t);
   o.frequency.exponentialRampToValueAtTime(Math.max(f1, 20), t + decay);
   envelope(g, t, peak, decay);
-  o.connect(g).connect(master!);
+  o.connect(g).connect(out(c));
   o.start(t);
   o.stop(t + decay + 0.02);
 }
@@ -74,7 +93,7 @@ function hiss(c: AudioContext, t: number, filter: BiquadFilterType, freq: number
   f.frequency.value = freq;
   f.Q.value = q;
   envelope(g, t, peak, decay);
-  s.connect(f).connect(g).connect(master!);
+  s.connect(f).connect(g).connect(out(c));
   s.start(t);
   s.stop(t + decay + 0.02);
 }
@@ -191,7 +210,7 @@ export function playBoing(heldSeconds: number) {
   o.frequency.setValueAtTime(base, t);
   steps.forEach(([dt, m]) => o.frequency.linearRampToValueAtTime(base * m, t + dt));
   envelope(g, t, 0.3 + h * 0.12, 0.55);
-  o.connect(g).connect(master!);
+  o.connect(g).connect(out(c));
   o.start(t);
   o.stop(t + 0.6);
 }
@@ -213,11 +232,14 @@ export function startSand(): Stream | null {
   bp.Q.value = 0.6;
   const g = c.createGain();
   g.gain.value = 0;
-  s.connect(hp).connect(bp).connect(g).connect(master!);
+  const pn = makePanner(c);
+  s.connect(hp).connect(bp).connect(g).connect(pn ?? master!);
+  pn?.connect(master!);
   s.start();
   const ctl: Stream = {
     set(level: number) {
       const t = c.currentTime;
+      pn?.pan.setTargetAtTime(curPan, t, 0.03);
       const jitter = 0.7 + Math.random() * 0.6; // 粒っぽさ
       g.gain.setTargetAtTime(level * 0.35 * jitter, t, 0.04);
       bp.frequency.setTargetAtTime(3500 + level * 3000, t, 0.05);
@@ -310,11 +332,14 @@ export function startSlime(): Stream | null {
   lp.frequency.value = 2200;
   const g = c.createGain();
   g.gain.value = 0;
-  s.connect(bp).connect(lp).connect(g).connect(master!);
+  const pn = makePanner(c);
+  s.connect(bp).connect(lp).connect(g).connect(pn ?? master!);
+  pn?.connect(master!);
   s.start();
   const ctl: Stream = {
     set(level: number) {
       const t = c.currentTime;
+      pn?.pan.setTargetAtTime(curPan, t, 0.03);
       g.gain.setTargetAtTime(level * 0.5, t, 0.05);
       bp.frequency.setTargetAtTime(350 + level * 900 + Math.random() * 350, t, 0.03);
     },
@@ -403,6 +428,147 @@ export function playPuni(strong: boolean) {
   const t = c.currentTime;
   tone(c, t, 200 + Math.random() * 90, 110, 0.1, strong ? 0.32 : 0.18);
   hiss(c, t, "lowpass", 500, 0.8, 0.08, strong ? 0.22 : 0.12);
+}
+
+/* ---------- 鳴り続ける音の共通部品 ---------- */
+type FilterSpec = { type: BiquadFilterType; freq: number; q: number };
+/** ノイズをフィルターに通して鳴らし続ける。set(0〜1)で音量、tuneで音色が変わる */
+function noiseStream(
+  specs: FilterSpec[],
+  gainScale: number,
+  tuneIdx: number,
+  tune: (level: number) => number,
+): Stream | null {
+  const c = getCtx();
+  if (!c) return null;
+  const s = c.createBufferSource();
+  s.buffer = loopBuffer(c);
+  s.loop = true;
+  const nodes = specs.map((sp) => {
+    const f = c.createBiquadFilter();
+    f.type = sp.type;
+    f.frequency.value = sp.freq;
+    f.Q.value = sp.q;
+    return f;
+  });
+  const g = c.createGain();
+  g.gain.value = 0;
+  const pn = makePanner(c);
+  let node: AudioNode = s;
+  for (const f of nodes) {
+    node.connect(f);
+    node = f;
+  }
+  node.connect(g);
+  g.connect(pn ?? master!);
+  pn?.connect(master!);
+  s.start();
+  const ctl: Stream = {
+    set(level: number) {
+      const t = c.currentTime;
+      const jitter = 0.7 + Math.random() * 0.6;
+      g.gain.setTargetAtTime(level * gainScale * jitter, t, 0.04);
+      const target = nodes[tuneIdx];
+      if (target) target.frequency.setTargetAtTime(tune(level), t, 0.04);
+      pn?.pan.setTargetAtTime(curPan, t, 0.03);
+    },
+    stop() {
+      if (!streams.delete(ctl)) return;
+      const t = c.currentTime;
+      g.gain.setTargetAtTime(0, t, 0.07);
+      s.stop(t + 0.5);
+    },
+  };
+  streams.add(ctl);
+  return ctl;
+}
+
+/* ---------- マイクブラシ ---------- */
+export function startBrush() {
+  return noiseStream(
+    [
+      { type: "highpass", freq: 1500, q: 0.7 },
+      { type: "bandpass", freq: 3200, q: 0.5 },
+      { type: "lowpass", freq: 9000, q: 0.5 },
+    ],
+    0.5,
+    1,
+    (level) => 2500 + level * 3500,
+  );
+}
+/** 向きを変えたときの「さっ」 */
+export function playBrushTurn() {
+  const c = getCtx();
+  if (!c) return;
+  hiss(c, c.currentTime, "bandpass", 3800, 0.6, 0.07, 0.18);
+}
+
+/* ---------- けずるブロック ---------- */
+export type Material = "soap" | "sand" | "ice";
+export function startScrape(m: Material) {
+  if (m === "soap") {
+    return noiseStream([{ type: "highpass", freq: 600, q: 0.7 }, { type: "bandpass", freq: 1800, q: 0.8 }], 0.45, 1, (l) => 1400 + l * 1600);
+  }
+  if (m === "sand") {
+    return noiseStream([{ type: "highpass", freq: 250, q: 0.5 }, { type: "lowpass", freq: 2000, q: 0.5 }], 0.55, 1, (l) => 1200 + l * 900);
+  }
+  return noiseStream([{ type: "highpass", freq: 3000, q: 0.7 }, { type: "bandpass", freq: 6000, q: 0.7 }], 0.45, 1, (l) => 4500 + l * 3000);
+}
+/** 切りこみの一音。big は大きく崩れたとき */
+export function playCut(m: Material, big: boolean) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  if (m === "soap") {
+    hiss(c, t, "bandpass", 2200, 1, 0.07, big ? 0.45 : 0.3);
+    tone(c, t, 180, 90, 0.08, 0.25);
+  } else if (m === "sand") {
+    hiss(c, t, "lowpass", 1400, 0.7, 0.1, big ? 0.5 : 0.35);
+    tone(c, t, 110, 60, 0.1, 0.3);
+  } else {
+    hiss(c, t, "highpass", 4500, 0.8, 0.03, 0.4);
+    tone(c, t, 2600 + Math.random() * 800, 900, 0.04, 0.25);
+    hiss(c, t + 0.02, "highpass", 6500, 0.8, 0.025, 0.25);
+    if (big) tone(c, t + 0.03, 3600, 1800, 0.06, 0.12);
+  }
+}
+
+/* ---------- くしゃくしゃ ---------- */
+export type Sheet = "paper" | "plastic" | "cellophane";
+export function playCrinkle(m: Sheet, intensity: number) {
+  const c = getCtx();
+  if (!c) return;
+  const t = c.currentTime;
+  const k = 0.4 + 0.6 * Math.min(1, intensity);
+  if (m === "paper") {
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) hiss(c, t + Math.random() * 0.07, "bandpass", 2200 + Math.random() * 2600, 0.8, 0.03, 0.25 * k);
+  } else if (m === "plastic") {
+    const n = 5 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) hiss(c, t + Math.random() * 0.09, "highpass", 3500 + Math.random() * 3500, 0.7, 0.04, 0.2 * k);
+  } else {
+    const n = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      hiss(c, t + Math.random() * 0.07, "highpass", 5000 + Math.random() * 4000, 0.8, 0.025, 0.2 * k);
+      tone(c, t + Math.random() * 0.05, 3500 + Math.random() * 2000, 6000, 0.02, 0.06 * k);
+    }
+  }
+}
+/** のばしたときの「ぱりぱりぱり…」 */
+export function playUnfold(m: Sheet) {
+  for (let i = 0; i < 5; i++) setTimeout(() => playCrinkle(m, 0.8), i * 60);
+}
+
+/* ---------- カリカリお絵かき ---------- */
+export type Pen = "pencil" | "crayon" | "marker";
+export function startScratch(p: Pen) {
+  if (p === "pencil") {
+    return noiseStream([{ type: "highpass", freq: 2500, q: 0.7 }, { type: "bandpass", freq: 4200, q: 0.9 }], 0.4, 1, (l) => 3500 + l * 1800);
+  }
+  if (p === "crayon") {
+    return noiseStream([{ type: "highpass", freq: 500, q: 0.6 }, { type: "bandpass", freq: 1500, q: 0.6 }], 0.55, 1, (l) => 1100 + l * 900);
+  }
+  return noiseStream([{ type: "highpass", freq: 3500, q: 0.6 }, { type: "bandpass", freq: 6500, q: 0.5 }], 0.22, 1, (l) => 5500 + l * 1500);
 }
 
 /* ---------- ごほうび ---------- */

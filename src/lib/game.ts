@@ -2,7 +2,7 @@ export const COMBO_WINDOW_MS = 1500;
 
 export const PALETTE = ["#f4b6d2", "#8fe3e0", "#b9a7f5", "#ffe9a8"] as const;
 
-export type ObjectId = "bubble" | "jelly" | "sand" | "wrap" | "slime" | "water" | "pushpop" | "marble" | "keys" | "squeeze";
+export type ObjectId = "bubble" | "jelly" | "sand" | "wrap" | "slime" | "water" | "pushpop" | "marble" | "keys" | "squeeze" | "brush" | "cut" | "crumple" | "scratch";
 export type SoundId =
   | "soft" | "deep" | "glass" | "drop" | "pluck" | "crackle" | "chime" | "wood" | "sparkle" | "harp";
 export type ThemeId = "night" | "dawn" | "forest" | "aurora" | "sakura" | "galaxy";
@@ -42,6 +42,7 @@ export const UNLOCKS: Unlock[] = [
 
   { id: "drop", kind: "sound", name: "ぽちゃん", desc: "水滴が落ちるような丸い音", level: 6 },
   { id: "star", kind: "effect", name: "ほしくず", desc: "きらめく星のかけら", level: 6 },
+  { id: "brush", kind: "object", name: "マイクブラシ", desc: "ふわふわのマイクを、ブラシでなでる", level: 6 },
   { id: "wrap", kind: "object", name: "ぷちぷちシート", desc: "なぞって、全部つぶす", level: 7 },
   { id: "slime", kind: "object", name: "スライム", desc: "ひっぱって、のばして、ぬちゃっ", level: 8 },
   { id: "pluck", kind: "sound", name: "ぽろん", desc: "木の鍵盤を弾いたような音", level: 8 },
@@ -52,16 +53,19 @@ export const UNLOCKS: Unlock[] = [
   { id: "water", kind: "object", name: "みずたまり", desc: "触れると波紋が広がる", level: 10 },
   { id: "chime", kind: "sound", name: "ちりん", desc: "風鈴のような澄んだ余韻", level: 11 },
   { id: "petal", kind: "effect", name: "はなびら", desc: "ひらひら舞う花びら", level: 11 },
+  { id: "crumple", kind: "object", name: "くしゃくしゃ", desc: "紙・ビニール・セロファンを握りつぶす", level: 11 },
   { id: "aurora", kind: "theme", name: "オーロラ", desc: "ゆっくり色が流れる空", level: 12 },
   { id: "pushpop", kind: "object", name: "プッシュポップ", desc: "押しこんで、ぽこっ。なぞって一気に押せる", level: 12 },
   { id: "marble", kind: "object", name: "ビー玉", desc: "落として転がす", level: 13 },
   { id: "wood", kind: "sound", name: "コトッ", desc: "木をたたく温かい音", level: 14 },
+  { id: "cut", kind: "object", name: "けずるブロック", desc: "石けん・砂・氷を、きって削る", level: 14 },
   { id: "t15", kind: "title", name: "ASMRの住人", desc: "ここが居場所", level: 15 },
 
   { id: "keys", kind: "object", name: "かちかちキー", desc: "打鍵感の違う4種類のキー", level: 16 },
   { id: "squeeze", kind: "object", name: "パキパキスクイーズ", desc: "ロウをパキパキ割ると、中からふにゅふにゅ", level: 18 },
   { id: "sparkle", kind: "sound", name: "しゃらん", desc: "きらきら駆け上がる音", level: 17 },
   { id: "heart", kind: "effect", name: "ハート", desc: "ふわっと広がるハート", level: 17 },
+  { id: "scratch", kind: "object", name: "カリカリお絵かき", desc: "えんぴつやクレヨンで絵を描く", level: 17 },
   { id: "sakura", kind: "theme", name: "さくら夜", desc: "夜桜のような紅", level: 18 },
   { id: "harp", kind: "sound", name: "ぽろろん", desc: "ハープのような駆け上がり", level: 20 },
   { id: "t20", kind: "title", name: "いやしの達人", desc: "まわりまで静かになる", level: 20 },
@@ -84,6 +88,10 @@ export const SECRETS: Secret[] = [
   { id: "pakipaki", name: "パキパキ職人", hint: "握る音を聴き込む", note: "パキパキを100回鳴らした。" },
   { id: "flip", name: "ひっくり返し", hint: "全部押しこんだら、どうなる？", note: "プッシュポップを全部押しこんだ。" },
   { id: "waxbreak", name: "ロウの下には", hint: "かたい殻の中身が見たい", note: "スクイーズのロウを全部割った。" },
+  { id: "tingle", name: "ぞくぞく", hint: "離さずに、ずーっとなでる", note: "ブラシを離さずに長くなでた。" },
+  { id: "shaved", name: "削りきり", hint: "ブロックが小さくなるまで", note: "ブロックをほとんど削りきった。" },
+  { id: "crumpler", name: "くしゃくしゃ名人", hint: "どの素材も、ぎゅっと", note: "紙・ビニール・セロファンを全部くしゃくしゃにした。" },
+  { id: "artist", name: "ちいさな画家", hint: "白い紙をたっぷり使う", note: "たくさん絵を描いた。" },
 ];
 export const SECRET_XP = 20;
 
