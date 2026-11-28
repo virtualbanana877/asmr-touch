@@ -30,6 +30,7 @@ export default function CrumpleStage({ onTouch, onDiscover }: StageProps) {
   const lv = useRef(0); // くしゃくしゃ度 0〜1（目標）
   const shown = useRef(0); // 見た目（なめらかに追いかける）
   const pressing = useRef(false);
+  const activeId = useRef<number | null>(null); // いま握っている指
   const last = useRef<{ x: number; y: number; t: number } | null>(null);
   const acc = useRef(0);
   const xpAcc = useRef(0);
@@ -161,17 +162,34 @@ export default function CrumpleStage({ onTouch, onDiscover }: StageProps) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  /** 握っている状態を終わらせる */
+  const release = () => {
+    pressing.current = false;
+    activeId.current = null;
+    last.current = null;
+  };
+
   const choose = (id: string) => {
+    release();
     sheetRef.current = id as Sheet;
     setSheet(id as Sheet);
     lv.current = 0; // 新しい素材に替える
+    xpAcc.current = 0;
+    acc.current = 0;
     wake.current();
   };
 
   const flatten = () => {
+    release(); // 握ったままだと、すぐまた丸まってしまうので
     lv.current = 0;
+    xpAcc.current = 0;
+    acc.current = 0;
     playUnfold(sheetRef.current);
     wake.current();
+  };
+
+  const endPress = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerId === activeId.current) release();
   };
 
   return (
@@ -181,18 +199,21 @@ export default function CrumpleStage({ onTouch, onDiscover }: StageProps) {
       role="application"
       aria-label="シートを握ってくしゃくしゃにする"
       onPointerDown={(e) => {
-        if (pressing.current) return;
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
         pressing.current = true;
+        activeId.current = e.pointerId;
         last.current = { ...local(e), t: performance.now() };
         acc.current = 0;
-        onTouch("tap");
-        playCrinkle(sheetRef.current, 0.6);
+        playCrinkle(sheetRef.current, 0.6); // 経験値は、潰したときに入る
       }}
       onPointerMove={(e) => {
         const prev = last.current;
-        if (!pressing.current || !prev) return;
+        if (!pressing.current || !prev || e.pointerId !== activeId.current) return;
+        if (e.pointerType === "mouse" && e.buttons === 0) {
+          release(); // ボタンを離したのに、離した合図が届かなかった場合
+          return;
+        }
         const p = local(e);
         const now = performance.now();
         const dist = Math.hypot(p.x - prev.x, p.y - prev.y);
@@ -209,9 +230,9 @@ export default function CrumpleStage({ onTouch, onDiscover }: StageProps) {
           xpAcc.current -= units * 0.1;
           onTouch("hold", units);
         }
-        if (lv.current >= 1 && !done.current.has(sheetRef.current)) {
+        if (before < 1 && lv.current >= 1) {
+          onTouch("hold", 8); // 完全に潰したら、そのたびにボーナス
           done.current.add(sheetRef.current);
-          onTouch("hold", 5);
           if (done.current.size >= 3) onDiscover("crumpler");
         }
 
@@ -225,12 +246,9 @@ export default function CrumpleStage({ onTouch, onDiscover }: StageProps) {
         }
         wake.current();
       }}
-      onPointerUp={() => {
-        pressing.current = false;
-      }}
-      onPointerCancel={() => {
-        pressing.current = false;
-      }}
+      onPointerUp={endPress}
+      onPointerCancel={endPress}
+      onLostPointerCapture={endPress}
     >
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
       <ChipBar items={SHEETS} value={sheet} onSelect={choose}>
